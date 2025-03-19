@@ -1,11 +1,15 @@
 use std::env;
 
+use uqoin_core::utils::*;
+
 
 pub struct Config {
     pub host: String,
     pub port: u16,
     pub workers: usize,
-    // pub data_path: String,
+    pub data_path: String,
+    pub validators: Vec<U256>,
+    // pub private_key: U256,
 }
 
 
@@ -17,7 +21,10 @@ impl Config {
                                   .parse().unwrap(),
             workers: env::var("WORKERS").unwrap_or("1".to_string())
                                         .parse().unwrap(),
-            // data_path: env::var("DATA_PATH").unwrap_or("./tmp/db".to_string()),
+            data_path: env::var("DATA_PATH").unwrap_or("./tmp/db".to_string()),
+            validators: Vec::new(),
+            // private_key: env::var("PRIVATE_KEY").map(|s| U256::from_hex(&s))
+            //                                     .unwrap_or(U256::from(0)),
         }
     }
 }

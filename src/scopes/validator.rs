@@ -1,36 +1,16 @@
-use actix_web::{web, HttpResponse, Resource};
+use actix_web::{web, HttpResponse, Scope};
 
 use crate::utils::*;
 
 
-/// Get all known validators.
-async fn get_view() -> APIResult {
-    Ok(HttpResponse::Ok().finish())
+/// Get list of known validators.
+async fn get_view(appdata: WebAppData) -> APIResult {
+    let validators = appdata.validators.read().await.clone();
+    Ok(HttpResponse::Ok().json(validators))
 }
 
 
-/// Create a new validator to sync (permission required).
-async fn create_view() -> APIResult {
-    Ok(HttpResponse::NoContent().finish())
-}
-
-
-/// Update the validator (permission required).
-async fn update_view() -> APIResult {
-    Ok(HttpResponse::NoContent().finish())
-}
-
-
-/// Delete the validator (permission required).
-async fn delete_view() -> APIResult {
-    Ok(HttpResponse::NoContent().finish())
-}
-
-
-pub fn load_resource() -> Resource {
-    web::resource("/validator")
-        .route(web::get().to(get_view))
-        .route(web::post().to(create_view))
-        .route(web::put().to(update_view))
-        .route(web::delete().to(delete_view))
+pub fn load_scope() -> Scope {
+    web::scope("/validator")
+        .route("/list", web::get().to(get_view))
 }

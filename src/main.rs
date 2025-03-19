@@ -6,9 +6,11 @@ mod tasks;
 
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 
+use crate::utils::*;
 use crate::config::Config;
 use crate::appdata::AppData;
 use crate::scopes::*;
+use crate::tasks::*;
 
 
 #[get("/version")]
@@ -19,30 +21,35 @@ async fn version_view() -> HttpResponse {
 
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> TokioResult<()> {
+    // Config
     let config = Config::from_env();
 
-    let instance = AppData::new().await?;
+    // Run options
+    let workers = config.workers;
+    let host = config.host.clone();
+    let port = config.port;
+
+    // Create appdata instance
+    let instance = AppData::new(config).await?;
     let appdata = web::Data::new(instance);
 
-    // Background async task example (for syncing)
-    actix_web::rt::spawn(async move {
-        loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            println!("yes");
-        }
-    });
+    // Background tasks
+    actix_web::rt::spawn(validate_task(appdata.clone()));
+    actix_web::rt::spawn(sync_task(appdata.clone()));
 
+    // Create API server
     let server = HttpServer::new(move || {
         App::new()
             .app_data(appdata.clone())
             .service(version_view)
             .service(load_scope_client())
             .service(load_scope_blockchain())
-            .service(load_resource_validator())
+            .service(load_scope_validator())
     })
-        .workers(config.workers)
-        .bind((config.host, config.port))?;
+        .workers(workers)
+        .bind((host, port))?;
 
+    // Run API server
     server.run().await
 }
