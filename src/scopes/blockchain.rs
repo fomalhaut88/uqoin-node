@@ -21,6 +21,7 @@ struct TransactionQuery {
 
 #[derive(Serialize)]
 struct BlockData {
+    bix: u64,
     block: Block,
     transactions: Option<Vec<Transaction>>,
 }
@@ -42,7 +43,7 @@ async fn block_view(appdata: WebAppData,
             None
         };
 
-        Ok(HttpResponse::Ok().json(BlockData { block, transactions }))
+        Ok(HttpResponse::Ok().json(BlockData { bix, block, transactions }))
     } else {
         Ok(HttpResponse::NotFound().finish())
     }
