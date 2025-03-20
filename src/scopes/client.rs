@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use actix_web::{web, HttpResponse, Scope};
 use uqoin_core::utils::*;
-use uqoin_core::transaction::Group;
+use uqoin_core::transaction::{Transaction, Group};
 
 use crate::utils::*;
 
@@ -26,10 +26,11 @@ async fn coins_view(appdata: WebAppData,
 
 
 /// Send transaction group.
-async fn send_view(appdata: WebAppData, group: web::Json<Group>) -> APIResult {
+async fn send_view(appdata: WebAppData, 
+                   transactions: web::Json<Vec<Transaction>>) -> APIResult {
     let state = appdata.state.read().await;
 
-    if Group::validate_transactions(group.transactions(), &appdata.schema, 
+    if let Some(group) = Group::new(transactions.to_vec(), &appdata.schema, 
                                     &state) {
         let mut pool = appdata.pool.write().await;
         let added = pool.add_group(&group, &appdata.schema, &state);
