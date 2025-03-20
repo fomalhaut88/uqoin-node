@@ -5,6 +5,7 @@ mod scopes;
 mod tasks;
 
 use actix_web::{get, web, App, HttpResponse, HttpServer};
+use actix_web::middleware::Logger;
 
 use crate::utils::*;
 use crate::config::Config;
@@ -25,6 +26,10 @@ async fn main() -> TokioResult<()> {
     // Config
     let config = Config::from_env();
 
+    // Initialize logging
+    let env = env_logger::Env::new().filter_or("LOG_LEVEL", "info");
+    env_logger::init_from_env(env);
+
     // Run options
     let workers = config.workers;
     let host = config.host.clone();
@@ -41,6 +46,7 @@ async fn main() -> TokioResult<()> {
     // Create API server
     let server = HttpServer::new(move || {
         App::new()
+            .wrap(Logger::default())
             .app_data(appdata.clone())
             .service(version_view)
             .service(load_scope_client())

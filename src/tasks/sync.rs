@@ -7,8 +7,9 @@ const SYNC_TIMEOUT: u64 = 2000;
 
 
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
+    // use log::info;
     loop {
         sleep(Duration::from_millis(SYNC_TIMEOUT)).await;
-        println!("sync: {}", appdata.config.workers);
+        // info!("sync: {}", appdata.config.workers);
     }
 }
