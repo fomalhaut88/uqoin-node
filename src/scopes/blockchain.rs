@@ -1,7 +1,9 @@
 use serde::{Serialize, Deserialize};
 use actix_web::{web, HttpResponse, Scope};
+use uqoin_core::utils::U256;
 use uqoin_core::block::Block;
 use uqoin_core::transaction::Transaction;
+use uqoin_core::state::{BlockInfo, GENESIS_HASH};
 
 use crate::utils::*;
 
@@ -9,7 +11,6 @@ use crate::utils::*;
 #[derive(Deserialize)]
 struct BlockQuery {
     bix: Option<u64>,
-    ext: Option<bool>,
 }
 
 
@@ -23,26 +24,37 @@ struct TransactionQuery {
 struct BlockData {
     bix: u64,
     block: Block,
-    transactions: Option<Vec<Transaction>>,
+    transactions: Vec<Transaction>,
 }
 
 
-/// Get block information by `bix` of last one.
-async fn block_view(appdata: WebAppData, 
-                    query: web::Query<BlockQuery>) -> APIResult {
+/// Get block info by `bix`.
+async fn block_info_view(appdata: WebAppData, 
+                         query: web::Query<BlockQuery>) -> APIResult {
+    let blockchain = appdata.blockchain.read().await;
+
+    let bix = query.bix.unwrap_or(blockchain.get_block_count().await?);
+
+    let hash: U256 = if bix > 0 {
+        blockchain.get_block(bix).await.map(|block| block.hash)?
+    } else {
+        U256::from_hex(GENESIS_HASH)
+    };
+
+    Ok(HttpResponse::Ok().json(BlockInfo { bix, hash }))
+}
+
+
+/// Get block data by `bix`.
+async fn block_data_view(appdata: WebAppData, 
+                         query: web::Query<BlockQuery>) -> APIResult {
     let blockchain = appdata.blockchain.read().await;
 
     let bix = query.bix.unwrap_or(blockchain.get_block_count().await?);
 
     if bix > 0 {
         let block = blockchain.get_block(bix).await?;
-
-        let transactions = if query.ext.unwrap_or(false) {
-            Some(blockchain.get_transactions_of_block(bix).await?)
-        } else {
-            None
-        };
-
+        let transactions = blockchain.get_transactions_of_block(bix).await?;
         Ok(HttpResponse::Ok().json(BlockData { bix, block, transactions }))
     } else {
         Ok(HttpResponse::NotFound().finish())
@@ -61,6 +73,7 @@ async fn transaction_view(appdata: WebAppData,
 
 pub fn load_scope() -> Scope {
     web::scope("/blockchain")
-        .route("/block", web::get().to(block_view))
+        .route("/block-info", web::get().to(block_info_view))
+        .route("/block-data", web::get().to(block_data_view))
         .route("/transaction", web::get().to(transaction_view))
 }
