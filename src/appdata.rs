@@ -1,3 +1,4 @@
+use log::info;
 use tokio::sync::RwLock;
 use uqoin_core::utils::*;
 use uqoin_core::pool::Pool;
@@ -26,6 +27,27 @@ impl AppData {
         let state = RwLock::new(State::new());
         let blockchain = RwLock::new(Blockchain::new(&config.data_path).await?);
         let validators = RwLock::new(config.validators.clone());
-        Ok(Self { config, schema, pool, state, blockchain, validators })
+
+        let mut instance = Self {
+            config, schema, pool, state, blockchain, validators
+        };
+        instance.initialize().await?;
+        info!("AppData is ready");
+
+        Ok(instance)
+    }
+
+    async fn initialize(&mut self) -> TokioResult<()> {
+        // Evolve state through the blockchain
+        let blockchain = self.blockchain.read().await;
+        let mut state = self.state.write().await;
+        let block_count = blockchain.get_block_count().await?;
+        for bix in 1..=block_count {
+            let block = blockchain.get_block(bix).await?;
+            let transactions = 
+                blockchain.get_transactions_of_block(&block).await?;
+            state.roll_up(bix, &block, &transactions, &self.schema);
+        }
+        Ok(())
     }
 }

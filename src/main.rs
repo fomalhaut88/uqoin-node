@@ -41,7 +41,7 @@ async fn main() -> TokioResult<()> {
 
     // Background tasks
     actix_web::rt::spawn(validate_task(appdata.clone()));
-    actix_web::rt::spawn(sync_task(appdata.clone()));
+    // actix_web::rt::spawn(sync_task(appdata.clone()));
 
     // Create API server
     let server = HttpServer::new(move || {

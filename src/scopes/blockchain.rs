@@ -35,13 +35,22 @@ async fn block_info_view(appdata: WebAppData,
 
     let bix = query.bix.unwrap_or(blockchain.get_block_count().await?);
 
-    let hash: U256 = if bix > 0 {
-        blockchain.get_block(bix).await.map(|block| block.hash)?
+    let block_info = if bix > 0 {
+        let block = blockchain.get_block(bix).await?;
+        BlockInfo {
+            bix,
+            offset: block.offset + block.size,
+            hash: block.hash,
+        }
     } else {
-        U256::from_hex(GENESIS_HASH)
+        BlockInfo {
+            bix: 0,
+            offset: 0,
+            hash: U256::from_hex(GENESIS_HASH),
+        }
     };
 
-    Ok(HttpResponse::Ok().json(BlockInfo { bix, hash }))
+    Ok(HttpResponse::Ok().json(block_info))
 }
 
 
@@ -54,7 +63,7 @@ async fn block_data_view(appdata: WebAppData,
 
     if bix > 0 {
         let block = blockchain.get_block(bix).await?;
-        let transactions = blockchain.get_transactions_of_block(bix).await?;
+        let transactions = blockchain.get_transactions_of_block(&block).await?;
         Ok(HttpResponse::Ok().json(BlockData { bix, block, transactions }))
     } else {
         Ok(HttpResponse::NotFound().finish())
