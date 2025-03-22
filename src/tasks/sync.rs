@@ -2,6 +2,7 @@ use log::info;
 use rand::prelude::IndexedRandom;
 use tokio::time::{sleep, Duration};
 use uqoin_core::state::BlockInfo;
+use uqoin_core::blockchain::Blockchain;
 
 use crate::utils::*;
 use crate::scopes::blockchain::BlockData;
@@ -20,6 +21,11 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
 
         // Choose a random node
         if let Some(random_node) = appdata.nodes.read().await.choose(&mut rng) {
+            // Check remote blocks
+            // TODO: Check remote block before syncing...
+
+            info!("Try to sync with {}", random_node);
+
             // Request last block info of the node
             let last_info_remote = get_remote_block_info(
                 &random_node, None
@@ -35,34 +41,10 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                 info!("Syncing with {}", random_node);
 
                 // Calculate `bix` where the chains diverged
-                let bix_sync = {
-                    // Minimum `bix`
-                    let mut bix = std::cmp::min(last_info_remote.bix, 
-                                                last_info_local.bix);
-
-                    // Loop backward to compare hashes
-                    while bix > 0 {
-                        // Get remove blockchain hash as `bix`
-                        let hash_remote = get_remote_block_info(
-                            &random_node, Some(bix)
-                        ).await?.hash;
-
-                        // Get local blockchain hash as `bix`
-                        let hash_local = appdata.blockchain.read().await
-                            .get_block(bix).await?.hash;
-
-                        // If hashes is equal, leave the loop
-                        if hash_local == hash_remote {
-                            break;
-                        }
-
-                        // Decrement `bix` switching to the previous block
-                        bix -= 1;
-                    }
-
-                    // Return maximum `bix` until which the chains are equal
-                    bix
-                };
+                let bix_sync = calculate_divergence(
+                    last_info_local.bix, last_info_remote.bix, &random_node,
+                    &*appdata.blockchain.read().await
+                ).await?;
 
                 // Blocking `blockchain`, `state` and `pool` objects
                 let blockchain = appdata.blockchain.write().await;
@@ -99,6 +81,36 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
             }
         }
     }
+}
+
+
+async fn calculate_divergence(bix_last_local: u64, bix_last_remote: u64,  
+                              node: &str, blockchain: &Blockchain) -> 
+                              TokioResult<u64> {
+    // Minimum `bix`
+    let mut bix = std::cmp::min(bix_last_local, bix_last_remote);
+
+    // Loop backward to compare hashes
+    while bix > 0 {
+        // Get remove blockchain hash as `bix`
+        let hash_remote = get_remote_block_info(
+            node, Some(bix)
+        ).await?.hash;
+
+        // Get local blockchain hash as `bix`
+        let hash_local = blockchain.get_block(bix).await?.hash;
+
+        // If hashes is equal, leave the loop
+        if hash_local == hash_remote {
+            break;
+        }
+
+        // Decrement `bix` switching to the previous block
+        bix -= 1;
+    }
+
+    // Return maximum `bix` until which the chains are equal
+    Ok(bix)
 }
 
 
