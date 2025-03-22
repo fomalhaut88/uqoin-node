@@ -41,7 +41,7 @@ async fn main() -> TokioResult<()> {
 
     // Background tasks
     actix_web::rt::spawn(mine_task(appdata.clone()));
-    // actix_web::rt::spawn(sync_task(appdata.clone()));
+    actix_web::rt::spawn(sync_task(appdata.clone()));
 
     // Create API server
     let server = HttpServer::new(move || {
@@ -51,7 +51,7 @@ async fn main() -> TokioResult<()> {
             .service(version_view)
             .service(load_scope_client())
             .service(load_scope_blockchain())
-            .service(load_scope_validator())
+            .service(load_scope_node())
     })
         .workers(workers)
         .bind((host, port))?;

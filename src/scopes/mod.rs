@@ -1,7 +1,7 @@
 pub mod client;
 pub mod blockchain;
-pub mod validator;
+pub mod node;
 
 pub use client::{load_scope as load_scope_client};
 pub use blockchain::{load_scope as load_scope_blockchain};
-pub use validator::{load_scope as load_scope_validator};
+pub use node::{load_scope as load_scope_node};

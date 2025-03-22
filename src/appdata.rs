@@ -1,6 +1,5 @@
 use log::info;
 use tokio::sync::RwLock;
-use uqoin_core::utils::*;
 use uqoin_core::pool::Pool;
 use uqoin_core::state::State;
 use uqoin_core::schema::Schema;
@@ -16,7 +15,7 @@ pub struct AppData {
     pub pool: RwLock<Pool>,
     pub state: RwLock<State>,
     pub blockchain: RwLock<Blockchain>,
-    pub validators: RwLock<Vec<U256>>,
+    pub nodes: RwLock<Vec<String>>,
 }
 
 
@@ -26,10 +25,10 @@ impl AppData {
         let pool = RwLock::new(Pool::new());
         let state = RwLock::new(State::new());
         let blockchain = RwLock::new(Blockchain::new(&config.data_path).await?);
-        let validators = RwLock::new(config.validators.clone());
+        let nodes = RwLock::new(config.nodes.clone());
 
         let mut instance = Self {
-            config, schema, pool, state, blockchain, validators
+            config, schema, pool, state, blockchain, nodes
         };
         instance.initialize().await?;
         info!("AppData is ready");

@@ -20,11 +20,11 @@ struct TransactionQuery {
 }
 
 
-#[derive(Serialize)]
-struct BlockData {
-    bix: u64,
-    block: Block,
-    transactions: Vec<Transaction>,
+#[derive(Serialize, Deserialize)]
+pub struct BlockData {
+    pub bix: u64,
+    pub block: Block,
+    pub transactions: Vec<Transaction>,
 }
 
 
