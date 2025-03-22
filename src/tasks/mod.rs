@@ -1,5 +1,5 @@
 // pub mod sync;
-pub mod validate;
+pub mod mine;
 
 // pub use sync::{task as sync_task};
-pub use validate::{task as validate_task};
+pub use mine::{task as mine_task};
