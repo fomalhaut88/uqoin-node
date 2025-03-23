@@ -10,7 +10,7 @@ use uqoin_core::pool::Pool;
 
 use crate::utils::*;
 use crate::scopes::blockchain::BlockQuery;
-use crate::tasks::mine::COMPLEXITY;
+use crate::config::COMPLEXITY;
 
 
 const SYNC_TIMEOUT: u64 = 5000;
@@ -29,46 +29,51 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
             info!("Trying to sync with {}", random_node);
 
             // Request last block info of the node
-            let last_info_remote: BlockInfo = request_node(
-                &random_node, "/blockchain/block-info", None::<BlockQuery>
-            ).await?;
+            if let Ok(last_info_remote) = request_node::<BlockInfo, _>(
+                    &random_node, "/blockchain/block-info", 
+                    None::<BlockQuery>).await {
+                // Get local last block info
+                let last_info_local: BlockInfo = appdata.state.read().await
+                                                    .get_last_block_info().clone();
 
-            // Get local last block info
-            let last_info_local: BlockInfo = appdata.state.read().await
-                                                .get_last_block_info().clone();
+                // Synchronize basic condition (remote transaction count is greater
+                // than the local one)
+                if last_info_remote.offset > last_info_local.offset {
+                    info!("Need to sync with {}", random_node);
 
-            // Synchronize basic condition (remote transaction count is greater
-            // than the local one)
-            if last_info_remote.offset > last_info_local.offset {
-                info!("Need to sync with {}", random_node);
+                    // Request for divergent blocks
+                    let blocks = request_for_divergent_blocks(
+                        last_info_local.bix, last_info_remote.bix, &random_node,
+                        &*appdata.blockchain.read().await
+                    ).await?;
 
-                // Request for divergent blocks
-                let blocks = request_for_divergent_blocks(
-                    last_info_local.bix, last_info_remote.bix, &random_node,
-                    &*appdata.blockchain.read().await
-                ).await?;
+                    // Check divergent blocks
+                    if let Some((state_new, pool_new)) = 
+                            check_divergent_blocks(&blocks, &appdata).await? {
+                        info!("Syncing with {}", random_node);
 
-                // Check divergent blocks
-                if let Some((state_new, pool_new)) = 
-                        check_divergent_blocks(&blocks, &appdata).await? {
-                    info!("Syncing with {}", random_node);
+                        // Lock blockchain, state and pool
+                        let blockchain = appdata.blockchain.write().await;
+                        let mut state = appdata.state.write().await;
+                        let mut pool = appdata.pool.write().await;
 
-                    // Lock blockchain, state and pool
-                    let blockchain = appdata.blockchain.write().await;
-                    let mut state = appdata.state.write().await;
-                    let mut pool = appdata.pool.write().await;
+                        // Migrate blockchain
+                        migrate_blockchain(&blocks, &blockchain).await?;
 
-                    // Migrate blockchain
-                    migrate_blockchain(&blocks, &blockchain).await?;
+                        // Update state
+                        *state = state_new;
 
-                    // Update state
-                    *state = state_new;
+                        // Merge pool
+                        pool.merge(&pool_new, &appdata.schema, &state);
 
-                    // Merge pool
-                    pool.merge(&pool_new, &appdata.schema, &state);
+                        // Dump state
+                        state.dump(&appdata.config.get_state_path()).await?;
 
-                    info!("Synced with {} successfully", random_node);
+                        info!("Synced with {} successfully", random_node);
+                    }
                 }
+            } else {
+                info!("Cound not reach the node {}", random_node);
             }
         }
     }
@@ -83,7 +88,9 @@ async fn request_node<T: DeserializeOwned, Q: Serialize>(
     } else {
         format!("{}{}", node, path)
     };
-    let resp = reqwest::get(url).await.unwrap();
+    use tokio::io::{Error, ErrorKind};
+    let resp = reqwest::get(&url).await
+                       .map_err(|_| Error::new(ErrorKind::NotFound, url))?;
     let content: String = resp.text().await.unwrap();
     let instance = serde_json::from_str::<T>(&content)?;
     Ok(instance)

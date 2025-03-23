@@ -37,15 +37,25 @@ impl AppData {
     }
 
     async fn initialize(&mut self) -> TokioResult<()> {
-        // Evolve state through the blockchain
-        let blockchain = self.blockchain.read().await;
-        let mut state = self.state.write().await;
-        let block_count = blockchain.get_block_count().await?;
-        for bix in 1..=block_count {
-            let block = blockchain.get_block(bix).await?;
-            let transactions = 
-                blockchain.get_transactions_of_block(&block).await?;
-            state.roll_up(bix, &block, &transactions, &self.schema);
+        // Try to load state
+        if let Ok(state) = State::load(&self.config.get_state_path()).await {
+            *self.state.write().await = state;
+            info!("State loaded from file");
+        } else {
+            // Evolve state through the blockchain
+            info!("Could not load state from file");
+            info!("Evolving state through the blockchain");
+            let blockchain = self.blockchain.read().await;
+            let mut state = self.state.write().await;
+            let block_count = blockchain.get_block_count().await?;
+            for bix in 1..=block_count {
+                let block = blockchain.get_block(bix).await?;
+                let transactions = 
+                    blockchain.get_transactions_of_block(&block).await?;
+                state.roll_up(bix, &block, &transactions, &self.schema);
+            }
+            state.dump(&self.config.get_state_path()).await?;
+            info!("State is ready")
         }
         Ok(())
     }

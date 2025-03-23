@@ -2,19 +2,22 @@ use std::sync::{Arc, RwLock};
 
 use rand::Rng;
 use log::info;
+use tokio::time::{sleep, Duration};
 use uqoin_core::utils::U256;
 use uqoin_core::block::Block;
 use uqoin_core::transaction::Transaction;
 
 use crate::utils::*;
+use crate::config::COMPLEXITY;
 
 
-pub const COMPLEXITY: usize = 12;
+const MINING_TIMEOUT: u64 = 10;
+const MINING_UPDATE_COUNT: usize = 10;
+const NONCE_COUNT_PER_MINING_ITERATION: usize = 100000;
 
-const VALIDATE_TIMEOUT: u64 = 1;
-const NONCE_COUNT: usize = 100000;
-const THREADS: usize = 8;
 const GROUPS_MAX: Option<usize> = None;
+const VALIDATE_ITER_TIMEOUT_MILLIS: u64 = 
+    (MINING_TIMEOUT * 1000) / MINING_UPDATE_COUNT as u64;
 
 
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
@@ -29,11 +32,12 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
         Arc::new(RwLock::new(None));
 
     // Create threads
-    for _ in 0..THREADS {
+    for _ in 0..appdata.config.mining_threads {
         // Copy arcs
         let block_hash_arc = Arc::clone(&block_hash_arc);
         let transactions_arc = Arc::clone(&transactions_arc);
         let out_arc = Arc::clone(&out_arc);
+        let public_key = appdata.config.public_key.clone();
 
         // Spawn a thread
         std::thread::spawn(move || {
@@ -53,10 +57,9 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                                       < transactions.as_ref().unwrap().len()) {
                         // Mine nonce
                         let nonce = Block::mine(
-                            &mut rng, block_hash.as_ref().unwrap(), 
-                            &U256::from_hex("1CC9E9F542DA6BADEF40919A1A4611E584DC607549C0775F5015A2B309793C15"), 
-                            transactions.as_ref().unwrap(), 
-                            COMPLEXITY, Some(NONCE_COUNT)
+                            &mut rng, block_hash.as_ref().unwrap(), &public_key,
+                            transactions.as_ref().unwrap(), COMPLEXITY, 
+                            Some(NONCE_COUNT_PER_MINING_ITERATION)
                         );
 
                         // If nonce is mined, set `out`
@@ -84,9 +87,9 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
 
     // Infinite loop to process pool, state and threads
     loop {
-        // Try to update transactions to join 10 times with the sleepage
-        // VALIDATE_TIMEOUT.
-        for _ in 0..10 {
+        // Try to update transactions to join `MINING_UPDATE_COUNT` times with  
+        // the sleepage `MINING_TIMEOUT`.
+        for _ in 0..MINING_UPDATE_COUNT {
             // Get ready transactions for the next block
             let (block_hash, transactions) = 
                 get_transactions_from_pool(&mut rng, &appdata).await;
@@ -100,9 +103,7 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
             }
 
             // Sleep
-            tokio::time::sleep(
-                tokio::time::Duration::from_secs(VALIDATE_TIMEOUT)
-            ).await;
+            sleep(Duration::from_millis(VALIDATE_ITER_TIMEOUT_MILLIS)).await;
         }
 
         // Check if nonce is mined
@@ -149,10 +150,9 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
     // If block hash is relevant
     if block_hash == &last_block_info.hash {
         // Create a new block
-        // TODO: Set wallet from config
         let block = Block::build(
             last_block_info.offset, block_hash.clone(), 
-            U256::from_hex("1CC9E9F542DA6BADEF40919A1A4611E584DC607549C0775F5015A2B309793C15"),
+            appdata.config.public_key.clone(),
             transactions, U256::from_bytes(nonce), COMPLEXITY, 
             &appdata.schema, &state
         );
@@ -168,6 +168,9 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
             // Update pool
             let mut pool = appdata.pool.write().await;
             pool.update_groups(&appdata.schema, &state);
+
+            // Dump state
+            state.dump(&appdata.config.get_state_path()).await?;
 
             // Log
             info!("New block added, bix = {}", bix);

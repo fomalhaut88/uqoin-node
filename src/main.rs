@@ -4,6 +4,7 @@ mod appdata;
 mod scopes;
 mod tasks;
 
+use log::{info, error};
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 use actix_web::middleware::Logger;
 
@@ -18,6 +19,16 @@ use crate::tasks::*;
 async fn version_view() -> HttpResponse {
     let version = env!("CARGO_PKG_VERSION");
     HttpResponse::Ok().body(version)
+}
+
+
+async fn run_task<F>(task: F, appdata: WebAppData) -> tokio::io::Result<()> where F: AsyncFn(WebAppData) -> tokio::io::Result<()> {
+    loop {
+        if let Err(err) = task(appdata.clone()).await {
+            error!("{:?}", err);
+            info!("Restarting task");
+        }
+    }
 }
 
 
@@ -40,8 +51,8 @@ async fn main() -> TokioResult<()> {
     let appdata = web::Data::new(instance);
 
     // Background tasks
-    actix_web::rt::spawn(mine_task(appdata.clone()));
-    actix_web::rt::spawn(sync_task(appdata.clone()));
+    actix_web::rt::spawn(run_task(mine_task, appdata.clone()));
+    actix_web::rt::spawn(run_task(sync_task, appdata.clone()));
 
     // Create API server
     let server = HttpServer::new(move || {
@@ -49,6 +60,7 @@ async fn main() -> TokioResult<()> {
             .wrap(Logger::default())
             .app_data(appdata.clone())
             .service(version_view)
+            .service(load_scope_coin())
             .service(load_scope_client())
             .service(load_scope_blockchain())
             .service(load_scope_node())
