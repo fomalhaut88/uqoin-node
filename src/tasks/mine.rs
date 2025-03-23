@@ -9,7 +9,7 @@ use uqoin_core::transaction::Transaction;
 use crate::utils::*;
 
 
-const COMPLEXITY: usize = 12;
+pub const COMPLEXITY: usize = 12;
 
 const VALIDATE_TIMEOUT: u64 = 1;
 const NONCE_COUNT: usize = 100000;
@@ -137,10 +137,14 @@ async fn get_transactions_from_pool<R: Rng>(
 
 
 async fn add_new_block(block_hash: &U256, transactions: &[Transaction], 
-        nonce: &[u8; 32], appdata: &WebAppData) -> std::io::Result<()> {
-    // Get state for change below
+                       nonce: &[u8; 32], appdata: &WebAppData) -> 
+                       std::io::Result<()> {
+    // Lock state for change below
     let mut state = appdata.state.write().await;
     let last_block_info = state.get_last_block_info();
+
+    // Lock blockchain to change
+    let blockchain = appdata.blockchain.write().await;
 
     // If block hash is relevant
     if block_hash == &last_block_info.hash {
@@ -155,9 +159,6 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
 
         // If block built
         if let Some(block) = block {
-            // Get blockchain to change
-            let blockchain = appdata.blockchain.write().await;
-
             // Push new block
             let bix = blockchain.push_new_block(&block, transactions).await?;
 

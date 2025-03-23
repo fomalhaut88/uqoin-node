@@ -1,30 +1,19 @@
 use serde::{Serialize, Deserialize};
 use actix_web::{web, HttpResponse, Scope};
-use uqoin_core::utils::U256;
-use uqoin_core::block::Block;
-use uqoin_core::transaction::Transaction;
-use uqoin_core::state::{BlockInfo, GENESIS_HASH};
+use uqoin_core::block::{BlockInfo, BlockData};
 
 use crate::utils::*;
 
 
-#[derive(Deserialize)]
-struct BlockQuery {
-    bix: Option<u64>,
-}
-
-
-#[derive(Deserialize)]
-struct TransactionQuery {
-    tix: u64,
+#[derive(Serialize, Deserialize)]
+pub struct BlockQuery {
+    pub bix: Option<u64>,
 }
 
 
 #[derive(Serialize, Deserialize)]
-pub struct BlockData {
-    pub bix: u64,
-    pub block: Block,
-    pub transactions: Vec<Transaction>,
+pub struct TransactionQuery {
+    pub tix: u64,
 }
 
 
@@ -43,11 +32,7 @@ async fn block_info_view(appdata: WebAppData,
             hash: block.hash,
         }
     } else {
-        BlockInfo {
-            bix: 0,
-            offset: 0,
-            hash: U256::from_hex(GENESIS_HASH),
-        }
+        BlockInfo::genesis()
     };
 
     Ok(HttpResponse::Ok().json(block_info))
@@ -61,13 +46,15 @@ async fn block_data_view(appdata: WebAppData,
 
     let bix = query.bix.unwrap_or(blockchain.get_block_count().await?);
 
-    if bix > 0 {
+    let block_data = if bix > 0 {
         let block = blockchain.get_block(bix).await?;
         let transactions = blockchain.get_transactions_of_block(&block).await?;
-        Ok(HttpResponse::Ok().json(BlockData { bix, block, transactions }))
+        BlockData { bix, block, transactions }
     } else {
-        Ok(HttpResponse::NotFound().finish())
-    }
+        BlockData::genesis()
+    };
+
+    Ok(HttpResponse::Ok().json(block_data))
 }
 
 
