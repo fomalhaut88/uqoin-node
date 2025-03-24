@@ -28,14 +28,24 @@ async fn coins_view(appdata: WebAppData,
 /// Send transaction group.
 async fn send_view(appdata: WebAppData, 
                    transactions: web::Json<Vec<Transaction>>) -> APIResult {
+    // Get state
     let state = appdata.state.read().await;
 
+    // Create group from raw transactions
     if let Some(group) = Group::new(transactions.to_vec(), &appdata.schema, 
                                     &state) {
-        let mut pool = appdata.pool.write().await;
-        let added = pool.add_group(&group, &appdata.schema, &state);
-        if added {
-            return Ok(HttpResponse::Ok().finish());
+        // Get client fee
+        let fee_order = group.get_fee()
+            .map(|tr| tr.get_order(&state, &appdata.schema)).unwrap_or(0);
+
+        // Check fee
+        if fee_order >= appdata.config.fee_min_order {
+            // Insert the group into pool
+            let mut pool = appdata.pool.write().await;
+            let added = pool.add_group(&group, &appdata.schema, &state);
+            if added {
+                return Ok(HttpResponse::Ok().finish());
+            }
         }
     }
 

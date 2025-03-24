@@ -5,6 +5,8 @@ mod scopes;
 mod tasks;
 
 use log::{info, error};
+use serde::Serialize;
+use tokio::io::{Result as TokioResult};
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 use actix_web::middleware::Logger;
 
@@ -15,14 +17,22 @@ use crate::scopes::*;
 use crate::tasks::*;
 
 
-#[get("/version")]
-async fn version_view() -> HttpResponse {
-    let version = env!("CARGO_PKG_VERSION");
-    HttpResponse::Ok().body(version)
+#[derive(Serialize)]
+struct VersionInfo {
+    version: String,
 }
 
 
-async fn run_task<F>(task: F, appdata: WebAppData) -> tokio::io::Result<()> where F: AsyncFn(WebAppData) -> tokio::io::Result<()> {
+#[get("/version")]
+async fn version_view() -> HttpResponse {
+    let version = env!("CARGO_PKG_VERSION").to_string();
+    HttpResponse::Ok().json(VersionInfo { version })
+}
+
+
+async fn run_task<F>(task: F, appdata: WebAppData) -> 
+                     TokioResult<()> where 
+                        F: AsyncFn(WebAppData) -> TokioResult<()> {
     loop {
         if let Err(err) = task(appdata.clone()).await {
             error!("{:?}", err);

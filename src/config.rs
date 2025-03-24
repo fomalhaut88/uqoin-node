@@ -30,6 +30,9 @@ pub struct Config {
 
     /// Threads in mining.
     pub mining_threads: usize,
+
+    /// Minimum fee allowed (as order).
+    pub fee_min_order: u64,
 }
 
 
@@ -57,7 +60,9 @@ impl Config {
                                         .parse().unwrap(),
             data_path, nodes, private_key, public_key,
             mining_threads: env::var("MINING_THREADS")
-                                .unwrap_or("1".to_string()).parse().unwrap()
+                                .unwrap_or("1".to_string()).parse().unwrap(),
+            fee_min_order: env::var("FEE_MIN_ORDER")
+                               .map(|s| s.parse().unwrap()).unwrap_or(0),
         }
     }
 
