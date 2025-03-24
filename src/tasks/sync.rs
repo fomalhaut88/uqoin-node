@@ -12,16 +12,13 @@ use crate::utils::*;
 use crate::scopes::blockchain::BlockQuery;
 
 
-const SYNC_TIMEOUT: u64 = 5000;
-
-
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
     // Random generator
     let mut rng = rand::rng();
 
     loop {
         // Sync timeout
-        sleep(Duration::from_millis(SYNC_TIMEOUT)).await;
+        sleep(Duration::from_millis(appdata.config.node_sync_timeout)).await;
 
         // Choose a random node
         if let Some(random_node) = appdata.nodes.read().await.choose(&mut rng) {
@@ -33,9 +30,9 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                     None::<BlockQuery>).await {
                 // Get local last block info
                 let last_info_local: BlockInfo = appdata.state.read().await
-                                                    .get_last_block_info().clone();
+                                                .get_last_block_info().clone();
 
-                // Synchronize basic condition (remote transaction count is greater
+                // Sync basic condition (remote transaction count is greater
                 // than the local one)
                 if last_info_remote.offset > last_info_local.offset {
                     info!("Need to sync with {}", random_node);

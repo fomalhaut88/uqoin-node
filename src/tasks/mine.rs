@@ -10,13 +10,13 @@ use uqoin_core::transaction::Transaction;
 use crate::utils::*;
 
 
-const MINING_TIMEOUT: u64 = 10;
-const MINING_UPDATE_COUNT: usize = 10;
-const NONCE_COUNT_PER_MINING_ITERATION: usize = 100000;
+// const MINING_TIMEOUT: u64 = 10000;
+// const MINING_UPDATE_COUNT: u64 = 10;
+// const MINING_NONCE_COUNT_PER_ITERATION: usize = 100000;
+// const MINING_GROUPS_MAX: Option<usize> = None;
 
-const GROUPS_MAX: Option<usize> = None;
-const VALIDATE_ITER_TIMEOUT_MILLIS: u64 = 
-    (MINING_TIMEOUT * 1000) / MINING_UPDATE_COUNT as u64;
+// const MINING_VALIDATE_ITER_TIMEOUT: u64 = 
+//     MINING_TIMEOUT / MINING_UPDATE_COUNT;
 
 
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
@@ -37,6 +37,8 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
         let transactions_arc = Arc::clone(&transactions_arc);
         let out_arc = Arc::clone(&out_arc);
         let public_key = appdata.config.public_key.clone();
+        let mining_nonce_count_per_iteration = 
+            appdata.config.mining_nonce_count_per_iteration;
 
         // Spawn a thread
         std::thread::spawn(move || {
@@ -58,7 +60,7 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         let nonce = Block::mine(
                             &mut rng, block_hash.as_ref().unwrap(), &public_key,
                             transactions.as_ref().unwrap(), COMPLEXITY, 
-                            Some(NONCE_COUNT_PER_MINING_ITERATION)
+                            Some(mining_nonce_count_per_iteration)
                         );
 
                         // If nonce is mined, set `out`
@@ -88,7 +90,7 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
     loop {
         // Try to update transactions to join `MINING_UPDATE_COUNT` times with  
         // the sleepage `MINING_TIMEOUT`.
-        for _ in 0..MINING_UPDATE_COUNT {
+        for _ in 0..appdata.config.mining_update_count {
             // Get ready transactions for the next block
             let (block_hash, transactions) = 
                 get_transactions_from_pool(&mut rng, &appdata).await;
@@ -102,7 +104,9 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
             }
 
             // Sleep
-            sleep(Duration::from_millis(VALIDATE_ITER_TIMEOUT_MILLIS)).await;
+            sleep(Duration::from_millis(
+                appdata.config.get_mining_validate_iter_timeout()
+            )).await;
         }
 
         // Check if nonce is mined
@@ -126,7 +130,7 @@ async fn get_transactions_from_pool<R: Rng>(
 
     // Extract transactions for a new block from pool
     let transactions = pool.prepare(rng, &appdata.schema, &state, 
-        &appdata.config.private_key, GROUPS_MAX);
+        &appdata.config.private_key, appdata.config.mining_groups_max);
 
     // Get last block hash
     let block_hash = state.get_last_block_info().hash.clone();

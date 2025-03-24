@@ -33,6 +33,21 @@ pub struct Config {
 
     /// Minimum fee allowed (as order).
     pub fee_min_order: u64,
+
+    /// Node sync timeout.
+    pub node_sync_timeout: u64,
+
+    /// Mining timeout.
+    pub mining_timeout: u64,
+
+    /// Mining update count.
+    pub mining_update_count: u64,
+
+    /// Mining nonce count per iteration.
+    pub mining_nonce_count_per_iteration: usize,
+
+    /// Maximum groups from the pool to mine into a block.
+    pub mining_groups_max: Option<usize>,
 }
 
 
@@ -63,10 +78,25 @@ impl Config {
                                 .unwrap_or("1".to_string()).parse().unwrap(),
             fee_min_order: env::var("FEE_MIN_ORDER")
                                .map(|s| s.parse().unwrap()).unwrap_or(0),
+            node_sync_timeout: env::var("NODE_SYNC_TIMEOUT")
+                                   .map(|s| s.parse().unwrap()).unwrap_or(5000),
+            mining_timeout: env::var("MINING_TIMEOUT")
+                                .map(|s| s.parse().unwrap()).unwrap_or(10000),
+            mining_update_count: env::var("MINING_UPDATE_COUNT")
+                                 .map(|s| s.parse().unwrap()).unwrap_or(10),
+            mining_nonce_count_per_iteration: 
+                env::var("MINING_NONCE_COUNT_PER_ITERATION")
+                    .map(|s| s.parse().unwrap()).unwrap_or(100000),
+            mining_groups_max: env::var("MINING_GROUPS_MAX")
+                    .map(|s| Some(s.parse().unwrap())).unwrap_or(None),
         }
     }
 
     pub fn get_state_path(&self) -> String {
         path_concat!(self.data_path.clone(), "state.json")
+    }
+
+    pub fn get_mining_validate_iter_timeout(&self) -> u64 {
+        self.mining_timeout / self.mining_update_count
     }
 }
