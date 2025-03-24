@@ -3,6 +3,7 @@ use std::env;
 use lbasedb::path_concat;
 use uqoin_core::utils::U256;
 use uqoin_core::schema::Schema;
+use uqoin_core::coin::coin_order_by_symbol;
 
 
 /// Config parameters.
@@ -48,6 +49,9 @@ pub struct Config {
 
     /// Maximum groups from the pool to mine into a block.
     pub mining_groups_max: Option<usize>,
+
+    /// Lite mode
+    pub lite_mode: bool,
 }
 
 
@@ -61,7 +65,7 @@ impl Config {
 
         let nodes: Vec<String> = env::var("NODES")
             .map(|l| l.split_whitespace().map(|s| s.to_string()).collect())
-            .unwrap_or(Vec::new());
+            .expect("Environment NODES is required");
 
         let data_path = env::var("DATA_PATH").unwrap_or("./tmp".to_string());
 
@@ -77,7 +81,7 @@ impl Config {
             mining_threads: env::var("MINING_THREADS")
                                 .unwrap_or("1".to_string()).parse().unwrap(),
             fee_min_order: env::var("FEE_MIN_ORDER")
-                               .map(|s| s.parse().unwrap()).unwrap_or(0),
+                               .map(|s| coin_order_by_symbol(&s)).unwrap_or(0),
             node_sync_timeout: env::var("NODE_SYNC_TIMEOUT")
                                    .map(|s| s.parse().unwrap()).unwrap_or(5000),
             mining_timeout: env::var("MINING_TIMEOUT")
@@ -89,6 +93,8 @@ impl Config {
                     .map(|s| s.parse().unwrap()).unwrap_or(100000),
             mining_groups_max: env::var("MINING_GROUPS_MAX")
                     .map(|s| Some(s.parse().unwrap())).unwrap_or(None),
+            lite_mode: env::var("LITE_MODE").map(|s| s.parse().unwrap())
+                    .unwrap_or(false),
         }
     }
 

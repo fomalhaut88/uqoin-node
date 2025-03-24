@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 use actix_web::{web, HttpResponse, Scope};
 use uqoin_core::utils::U256;
 use uqoin_core::coin::coin_symbol;
@@ -6,10 +6,11 @@ use uqoin_core::coin::coin_symbol;
 use crate::utils::*;
 
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct NodeInfo {
     wallet: U256,
     fee: Option<String>,
+    lite_mode: bool,
 }
 
 
@@ -29,7 +30,8 @@ async fn info_view(appdata: WebAppData) -> APIResult {
     } else {
         None
     };
-    let node_info = NodeInfo { wallet, fee };
+    let lite_mode = appdata.config.lite_mode;
+    let node_info = NodeInfo { wallet, fee, lite_mode };
     Ok(HttpResponse::Ok().json(node_info))
 }
 

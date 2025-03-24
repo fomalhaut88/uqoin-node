@@ -61,7 +61,9 @@ async fn main() -> TokioResult<()> {
     let appdata = web::Data::new(instance);
 
     // Background tasks
-    actix_web::rt::spawn(run_task(mine_task, appdata.clone()));
+    if !appdata.config.lite_mode {
+        actix_web::rt::spawn(run_task(mine_task, appdata.clone()));
+    }
     actix_web::rt::spawn(run_task(sync_task, appdata.clone()));
 
     // Create API server
