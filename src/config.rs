@@ -5,9 +5,6 @@ use uqoin_core::utils::U256;
 use uqoin_core::schema::Schema;
 
 
-pub const COMPLEXITY: usize = 12;
-
-
 /// Config parameters.
 pub struct Config {
     /// Host to deploy.

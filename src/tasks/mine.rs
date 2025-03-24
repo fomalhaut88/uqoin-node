@@ -4,11 +4,10 @@ use rand::Rng;
 use log::info;
 use tokio::time::{sleep, Duration};
 use uqoin_core::utils::U256;
-use uqoin_core::block::Block;
+use uqoin_core::block::{Block, COMPLEXITY};
 use uqoin_core::transaction::Transaction;
 
 use crate::utils::*;
-use crate::config::COMPLEXITY;
 
 
 const MINING_TIMEOUT: u64 = 10;

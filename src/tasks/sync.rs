@@ -3,14 +3,13 @@ use rand::prelude::IndexedRandom;
 use tokio::time::{sleep, Duration};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use uqoin_core::block::{BlockInfo, BlockData};
+use uqoin_core::block::{BlockInfo, BlockData, COMPLEXITY};
 use uqoin_core::blockchain::Blockchain;
 use uqoin_core::state::State;
 use uqoin_core::pool::Pool;
 
 use crate::utils::*;
 use crate::scopes::blockchain::BlockQuery;
-use crate::config::COMPLEXITY;
 
 
 const SYNC_TIMEOUT: u64 = 5000;
