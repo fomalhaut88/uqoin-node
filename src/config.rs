@@ -85,9 +85,9 @@ impl Config {
             node_sync_timeout: env::var("NODE_SYNC_TIMEOUT")
                                    .map(|s| s.parse().unwrap()).unwrap_or(5000),
             mining_timeout: env::var("MINING_TIMEOUT")
-                                .map(|s| s.parse().unwrap()).unwrap_or(10000),
+                                .map(|s| s.parse().unwrap()).unwrap_or(20000),
             mining_update_count: env::var("MINING_UPDATE_COUNT")
-                                 .map(|s| s.parse().unwrap()).unwrap_or(10),
+                                 .map(|s| s.parse().unwrap()).unwrap_or(20),
             mining_nonce_count_per_iteration: 
                 env::var("MINING_NONCE_COUNT_PER_ITERATION")
                     .map(|s| s.parse().unwrap()).unwrap_or(100000),

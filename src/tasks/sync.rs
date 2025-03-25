@@ -1,5 +1,6 @@
 use log::{info, error};
 use rand::prelude::IndexedRandom;
+use tokio::io::{Error, ErrorKind};
 use tokio::time::{sleep, Duration};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -79,14 +80,19 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
 async fn request_node<T: DeserializeOwned, Q: Serialize>(
         node: &str, path: &str, qs: Option<Q>) -> TokioResult<T> {
     let query = qs.map(|q| serde_qs::to_string(&q).unwrap());
+
     let url = if let Some(query) = query {
         format!("{}{}?{}", node, path, query)
     } else {
         format!("{}{}", node, path)
     };
-    use tokio::io::{Error, ErrorKind};
-    let resp = reqwest::get(&url).await
-                       .map_err(|_| Error::new(ErrorKind::NotFound, url))?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5)).build().unwrap();
+
+    let resp = client.get(&url).send().await
+                     .map_err(|_| Error::new(ErrorKind::NotFound, url))?;
+
     let content: String = resp.text().await.unwrap();
     let instance = serde_json::from_str::<T>(&content)?;
     Ok(instance)

@@ -10,7 +10,7 @@ Build image example:
 docker build -t uqoin-node .
 ```
 
-Run docker container example:
+Run two docker containers locally example:
 
 ```
 docker run \
@@ -19,7 +19,18 @@ docker run \
     --volume ./tmp/1:/app/data \
     --name uqoin-node-app-1 \
     --env PRIVATE_KEY=054A773A579D5F08817F1EFA5B19837C25DBB4A2D07C67D10D683A9A22B6D96A \
-    --env NODES="http://172.17.0.1:8081 http://172.17.0.1:8082" \
+    --env NODES="http://172.17.0.2:5772 http://172.17.0.3:5772" \
+    --env WORKERS=4 \
+    --env MINING_THREADS=4 \
+    uqoin-node
+
+docker run \
+    -it --rm \
+    -p 8082:5772 \
+    --volume ./tmp/2:/app/data \
+    --name uqoin-node-app-2 \
+    --env PRIVATE_KEY=0250F121A6DB4C3114B09F7905A274D2DB024A0CA9DDDA5E41EEF97A5E26589B \
+    --env NODES="http://172.17.0.2:5772 http://172.17.0.3:5772" \
     --env WORKERS=4 \
     --env MINING_THREADS=4 \
     uqoin-node
@@ -54,7 +65,7 @@ docker run \
 | `FEE_MIN_ORDER` | Minimum fee coin symbol to accept transactions. | - |
 | `LITE_MODE` | Enable lite mode: without mining and accepting `send` transactions. | `false` |
 | `NODE_SYNC_TIMEOUT` | Timeout between node syncing (in milliseconds). | `5000` |
-| `MINING_TIMEOUT` | Timeout between mining block attempts (in milliseconds). | `10000` |
-| `MINING_UPDATE_COUNT` | Number of transactions update while a new block is being mined. | `10` |
+| `MINING_TIMEOUT` | Timeout between mining block attempts (in milliseconds). | `20000` |
+| `MINING_UPDATE_COUNT` | Number of transactions update while a new block is being mined. | `20` |
 | `MINING_NONCE_COUNT_PER_ITERATION` | Number of mining attempts per thread in iteration. | `100000` |
 | `MINING_GROUPS_MAX` | Maximum number of groups in mined blocks. | - |
