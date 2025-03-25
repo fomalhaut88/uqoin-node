@@ -1,4 +1,4 @@
-use log::info;
+use log::{info, error};
 use rand::prelude::IndexedRandom;
 use tokio::time::{sleep, Duration};
 use serde::Serialize;
@@ -175,9 +175,13 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
     let mut block_info_prev = blockchain.get_block_info(bix_sync).await?;
     for block_data in blocks.iter() {
         // Validate the block
-        if !block_data.block.validate(&block_data.transactions, 
-                                      &block_info_prev, COMPLEXITY, 
-                                      &appdata.schema, &state) {
+        let validation_result = block_data.block.validate(
+            &block_data.transactions, &block_info_prev, COMPLEXITY, 
+            &appdata.schema, &state
+        );
+
+        if let Err(err) = validation_result {
+            error!("{}", err);
             is_valid = false;
             break;
         }

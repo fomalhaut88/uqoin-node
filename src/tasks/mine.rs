@@ -154,8 +154,7 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
     if block_hash == &last_block_info.hash {
         // Create a new block
         let block = Block::build(
-            last_block_info.offset, block_hash.clone(), 
-            appdata.config.public_key.clone(),
+            last_block_info, appdata.config.public_key.clone(),
             transactions, U256::from_bytes(nonce), COMPLEXITY, 
             &appdata.schema, &state
         );
