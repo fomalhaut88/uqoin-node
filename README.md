@@ -15,7 +15,7 @@ Run docker container example:
 ```
 docker run \
     -it --rm \
-    -p 8081:8080 \
+    -p 8081:5772 \
     --volume ./tmp/1:/app/data \
     --name uqoin-node-app-1 \
     --env PRIVATE_KEY=054A773A579D5F08817F1EFA5B19837C25DBB4A2D07C67D10D683A9A22B6D96A \
@@ -47,7 +47,7 @@ docker run \
 | `PRIVATE_KEY` | Private key of the wallet. | **required** |
 | `NODES` | URL list of the nodes to sync. | **required** |
 | `HOST` | Host to deploy. | `localhost` |
-| `PORT` | Port to deploy. | `8080` |
+| `PORT` | Port to deploy. | `5772` |
 | `DATA_PATH` | Path to the directory for the data. | `./tmp` |
 | `WORKERS` | Number of workers to process API. | `1` |
 | `MINING_THREADS` | Number of threads in mining. | `1` |
