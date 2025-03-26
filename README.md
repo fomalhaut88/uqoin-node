@@ -22,6 +22,9 @@ docker run \
     --env NODES="http://172.17.0.2:5772 http://172.17.0.3:5772" \
     --env WORKERS=4 \
     --env MINING_THREADS=4 \
+    --env MINING_GROUPS_MAX=20 \
+    --env NODE_SYNC_TIMEOUT=10000 \
+    --env FEE_MIN=C32 \
     uqoin-node
 
 docker run \
@@ -33,6 +36,9 @@ docker run \
     --env NODES="http://172.17.0.2:5772 http://172.17.0.3:5772" \
     --env WORKERS=4 \
     --env MINING_THREADS=4 \
+    --env MINING_GROUPS_MAX=20 \
+    --env NODE_SYNC_TIMEOUT=10000 \
+    --env FEE_MIN=C32 \
     uqoin-node
 ```
 
