@@ -80,7 +80,7 @@ impl Config {
             data_path, nodes, private_key, public_key,
             mining_threads: env::var("MINING_THREADS")
                                 .unwrap_or("1".to_string()).parse().unwrap(),
-            fee_min_order: env::var("FEE_MIN_ORDER")
+            fee_min_order: env::var("FEE_MIN")
                                .map(|s| coin_order_by_symbol(&s)).unwrap_or(0),
             node_sync_timeout: env::var("NODE_SYNC_TIMEOUT")
                                    .map(|s| s.parse().unwrap()).unwrap_or(5000),
