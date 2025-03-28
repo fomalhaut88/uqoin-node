@@ -15,5 +15,5 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 serde_qs = "0.14.0"
 tokio = { version = "1.44.1", features = ["full"] }
-uqoin-core = { git = "https://github.com/fomalhaut88/uqoin-core.git" }
+uqoin-core = { git = "https://github.com/fomalhaut88/uqoin-core.git", features = ["blockchain"] }
 # uqoin-core = { path = "../uqoin-core" }
