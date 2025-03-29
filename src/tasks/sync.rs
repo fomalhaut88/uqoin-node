@@ -13,6 +13,9 @@ use crate::utils::*;
 use crate::scopes::blockchain::BlockQuery;
 
 
+const TRY_NODE_ATTEMPTS: usize = 10;
+
+
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
     // Random generator
     let mut rng = rand::rng();
@@ -77,6 +80,22 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
 }
 
 
+macro_rules! async_try_many {
+    ($count:expr, $func:ident $(, $arg:expr)*) => {
+        {
+            let mut res = Err(Error::new(ErrorKind::Other, "Too many errors"));
+            for _ in 0..$count {
+                if let Ok(r) = $func($($arg,)*).await {
+                    res = Ok(r);
+                    break;
+                }
+            }
+            res
+        }
+    }
+}
+
+
 async fn request_node<T: DeserializeOwned, Q: Serialize>(
         node: &str, path: &str, qs: Option<Q>) -> TokioResult<T> {
     let query = qs.map(|q| serde_qs::to_string(&q).unwrap());
@@ -112,10 +131,11 @@ async fn request_for_divergent_blocks(bix_last_local: u64, bix_last_remote: u64,
     // Download forward blocks
     while bix > bix_last_local {
         // Get remote block data
-        let block_data: BlockData = request_node(
+        let block_data: BlockData = async_try_many!(
+            TRY_NODE_ATTEMPTS, request_node, 
             node, "/blockchain/block-data",
             Some(BlockQuery { bix: Some(bix) })
-        ).await?;
+        )?;
 
         // Push the block data
         blocks.push(block_data);
@@ -127,10 +147,11 @@ async fn request_for_divergent_blocks(bix_last_local: u64, bix_last_remote: u64,
     // Download divergent blocks
     while bix > 0 {
         // Get remote block data
-        let block_data: BlockData = request_node(
+        let block_data: BlockData = async_try_many!(
+            TRY_NODE_ATTEMPTS, request_node, 
             node, "/blockchain/block-data",
             Some(BlockQuery { bix: Some(bix) })
-        ).await?;
+        )?;
 
         // Get local block hash for the `bix`
         let hash_local = blockchain.get_block(bix).await?.hash;
