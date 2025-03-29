@@ -61,15 +61,14 @@ docker run \
 
 | Variable | Description | Default |
 |---|---|---|
-| `PRIVATE_KEY` | Private key of the wallet. | **required** |
-| `NODES` | URL list of the nodes to sync. | **required** |
+| `PRIVATE_KEY` | Private key of the wallet. | - |
+| `NODES` | URL list of the nodes to sync. | - |
 | `HOST` | Host to deploy. | `localhost` |
 | `PORT` | Port to deploy. | `5772` |
 | `DATA_PATH` | Path to the directory for the data. | `./tmp` |
 | `WORKERS` | Number of workers to process API. | `1` |
 | `MINING_THREADS` | Number of threads in mining. | `1` |
 | `FEE_MIN` | Minimum fee coin symbol to accept transactions. | - |
-| `LITE_MODE` | Enable lite mode: without mining and accepting `send` transactions. | `false` |
 | `NODE_SYNC_TIMEOUT` | Timeout between node syncing (in milliseconds). | `5000` |
 | `MINING_TIMEOUT` | Timeout between mining block attempts (in milliseconds). | `20000` |
 | `MINING_UPDATE_COUNT` | Number of transactions update while a new block is being mined. | `20` |

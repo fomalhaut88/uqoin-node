@@ -8,7 +8,7 @@ use crate::utils::*;
 
 #[derive(Debug, Serialize)]
 struct NodeInfo {
-    wallet: U256,
+    wallet: Option<U256>,
     fee: Option<String>,
     lite_mode: bool,
 }

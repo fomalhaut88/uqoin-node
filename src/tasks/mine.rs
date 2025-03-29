@@ -36,7 +36,7 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
         let block_hash_arc = Arc::clone(&block_hash_arc);
         let transactions_arc = Arc::clone(&transactions_arc);
         let out_arc = Arc::clone(&out_arc);
-        let public_key = appdata.config.public_key.clone();
+        let public_key = appdata.config.public_key.clone().unwrap();
         let mining_nonce_count_per_iteration = 
             appdata.config.mining_nonce_count_per_iteration;
 
@@ -129,8 +129,11 @@ async fn get_transactions_from_pool<R: Rng>(
     let pool = appdata.pool.write().await;
 
     // Extract transactions for a new block from pool
-    let transactions = pool.prepare(rng, &appdata.schema, &state, 
-        &appdata.config.private_key, appdata.config.mining_groups_max);
+    let transactions = pool.prepare(
+        rng, &appdata.schema, &state, 
+        &appdata.config.private_key.as_ref().unwrap(), 
+        appdata.config.mining_groups_max
+    );
 
     // Get last block hash
     let block_hash = state.get_last_block_info().hash.clone();
@@ -154,7 +157,7 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
     if block_hash == &last_block_info.hash {
         // Create a new block
         let block = Block::build(
-            last_block_info, appdata.config.public_key.clone(),
+            last_block_info, appdata.config.public_key.clone().unwrap(),
             transactions, U256::from_bytes(nonce), COMPLEXITY, 
             &appdata.schema, &state
         );

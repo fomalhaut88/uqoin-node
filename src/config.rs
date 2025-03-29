@@ -24,10 +24,10 @@ pub struct Config {
     pub nodes: Vec<String>,
 
     /// Validator private key.
-    pub private_key: U256,
+    pub private_key: Option<U256>,
 
     /// Validator public key.
-    pub public_key: U256,
+    pub public_key: Option<U256>,
 
     /// Threads in mining.
     pub mining_threads: usize,
@@ -59,15 +59,18 @@ impl Config {
     pub fn from_env() -> Self {
         let schema = Schema::new();
 
-        let private_key = env::var("PRIVATE_KEY").map(|s| U256::from_hex(&s))
-                              .expect("Environment PRIVATE_KEY is required");
-        let public_key = schema.get_public(&private_key);
+        let private_key = env::var("PRIVATE_KEY")
+            .map(|s| U256::from_hex(&s)).ok();
+        let public_key = private_key.as_ref()
+            .map(|key| schema.get_public(&key));
 
         let nodes: Vec<String> = env::var("NODES")
             .map(|l| l.split_whitespace().map(|s| s.to_string()).collect())
             .expect("Environment NODES is required");
 
         let data_path = env::var("DATA_PATH").unwrap_or("./tmp".to_string());
+
+        let lite_mode = private_key.is_none();
 
         std::fs::create_dir_all(&data_path).unwrap();
 
@@ -92,9 +95,8 @@ impl Config {
                 env::var("MINING_NONCE_COUNT_PER_ITERATION")
                     .map(|s| s.parse().unwrap()).unwrap_or(100000),
             mining_groups_max: env::var("MINING_GROUPS_MAX")
-                    .map(|s| Some(s.parse().unwrap())).unwrap_or(None),
-            lite_mode: env::var("LITE_MODE").map(|s| s.parse().unwrap())
-                    .unwrap_or(false),
+                    .map(|s| s.parse().unwrap()).ok(),
+            lite_mode,
         }
     }
 

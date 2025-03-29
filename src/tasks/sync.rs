@@ -93,7 +93,8 @@ async fn request_node<T: DeserializeOwned, Q: Serialize>(
     let resp = client.get(&url).send().await
                      .map_err(|_| Error::new(ErrorKind::NotFound, url))?;
 
-    let content: String = resp.text().await.unwrap();
+    let content: String = resp.text().await
+        .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
     let instance = serde_json::from_str::<T>(&content)?;
     Ok(instance)
 }
