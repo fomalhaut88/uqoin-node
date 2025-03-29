@@ -2,6 +2,7 @@ use log::{info, error};
 use rand::prelude::IndexedRandom;
 use tokio::io::{Error, ErrorKind};
 use tokio::time::{sleep, Duration};
+use tokio::task::JoinSet;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use uqoin_core::block::{BlockInfo, BlockData, COMPLEXITY};
@@ -9,11 +10,13 @@ use uqoin_core::blockchain::Blockchain;
 use uqoin_core::state::State;
 use uqoin_core::pool::Pool;
 
+use crate::async_try_many;
 use crate::utils::*;
 use crate::scopes::blockchain::BlockQuery;
 
 
 const TRY_NODE_ATTEMPTS: usize = 10;
+const SYNC_BLOCKS_LIMIT: usize = 2000;
 
 
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
@@ -41,11 +44,24 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                 if last_info_remote.offset > last_info_local.offset {
                     info!("Need to sync with {}", random_node);
 
-                    // Request for divergent blocks
-                    let blocks = request_for_divergent_blocks(
-                        last_info_local.bix, last_info_remote.bix, &random_node,
-                        &*appdata.blockchain.read().await
+                    // Request for sync point
+                    let bix_sync = request_for_divergent_bix(
+                        std::cmp::min(last_info_remote.bix, last_info_local.bix),
+                        &random_node, &*appdata.blockchain.read().await
                     ).await?;
+
+                    info!("Need to sync after bix = {}", bix_sync);
+
+                    // Limit the block count to sync
+                    let bix_until = std::cmp::min(last_info_remote.bix, 
+                                                  bix_sync + SYNC_BLOCKS_LIMIT);
+
+                    // Request for remote blocks
+                    let blocks = request_for_remote_blocks(
+                        bix_sync + 1, bix_until, &random_node
+                    ).await?;
+
+                    info!("Got {} blocks to roll up", blocks.len());
 
                     // Check divergent blocks
                     if let Some((state_new, pool_new)) = 
@@ -70,27 +86,13 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         state.dump(&appdata.config.get_state_path()).await?;
 
                         info!("Synced with {} successfully", random_node);
+                    } else {
+                        info!("Blocks are invalid in {}", random_node);
                     }
                 }
             } else {
                 info!("Cound not reach the node {}", random_node);
             }
-        }
-    }
-}
-
-
-macro_rules! async_try_many {
-    ($count:expr, $func:ident $(, $arg:expr)*) => {
-        {
-            let mut res = Err(Error::new(ErrorKind::Other, "Too many errors"));
-            for _ in 0..$count {
-                if let Ok(r) = $func($($arg,)*).await {
-                    res = Ok(r);
-                    break;
-                }
-            }
-            res
         }
     }
 }
@@ -119,57 +121,62 @@ async fn request_node<T: DeserializeOwned, Q: Serialize>(
 }
 
 
-async fn request_for_divergent_blocks(bix_last_local: u64, bix_last_remote: u64, 
-                                      node: &str, blockchain: &Blockchain) -> 
-                                      TokioResult<Vec<BlockData>> {
-    // Block number (`bix`) to download
-    let mut bix = bix_last_remote;
-
-    // Divergent block vector
-    let mut blocks: Vec<BlockData> = Vec::new();
-
-    // Download forward blocks
-    while bix > bix_last_local {
-        // Get remote block data
-        let block_data: BlockData = async_try_many!(
+async fn request_for_divergent_bix(bix_last: u64, node: &str, 
+                                   blockchain: &Blockchain) -> 
+                                   TokioResult<u64> {
+    find_divergence(bix_last, async |bix| {
+        // Get remote block info
+        let block_info: BlockInfo = async_try_many!(
             TRY_NODE_ATTEMPTS, request_node, 
-            node, "/blockchain/block-data",
-            Some(BlockQuery { bix: Some(bix) })
-        )?;
-
-        // Push the block data
-        blocks.push(block_data);
-
-        // Decrement `bix`
-        bix -= 1;
-    }
-
-    // Download divergent blocks
-    while bix > 0 {
-        // Get remote block data
-        let block_data: BlockData = async_try_many!(
-            TRY_NODE_ATTEMPTS, request_node, 
-            node, "/blockchain/block-data",
+            node, "/blockchain/block-info",
             Some(BlockQuery { bix: Some(bix) })
         )?;
 
         // Get local block hash for the `bix`
         let hash_local = blockchain.get_block(bix).await?.hash;
 
-        // Continue if hashes are different else break the loop
-        if block_data.block.hash != hash_local {
-            // Push the block data
-            blocks.push(block_data);
+        // Check if hashes are equal
+        Ok(block_info.hash == hash_local)
+    }).await
+}
 
-            // Decrement `bix` and continue
-            bix -= 1;
-        } else {
-            break;
+
+async fn request_for_remote_blocks(bix_from: u64, bix_to: u64, node: &str) -> 
+                                   TokioResult<Vec<BlockData>> {
+    // Empty blocks vector
+    let mut blocks: Vec<BlockData> = Vec::with_capacity(
+        (bix_to + 1 - bix_from) as usize
+    );
+
+    // Request in parallel with chunks
+    for chunk in (bix_from..=bix_to).collect::<Vec<u64>>().chunks(100) {
+        // Join set from tokio
+        let mut js = JoinSet::<TokioResult<BlockData>>::new();
+
+        // Start requests
+        for bix in chunk.into_iter().cloned() {
+            let node = node.to_string();
+            js.spawn(async move {
+                async_try_many!(
+                    TRY_NODE_ATTEMPTS, request_node, 
+                    &node, "/blockchain/block-data",
+                    Some(BlockQuery { bix: Some(bix) })
+                )
+            });
+        }
+
+        // Collect responses
+        while let Some(res) = js.join_next().await {
+            let block_data: BlockData = res??;
+            blocks.push(block_data);
         }
     }
 
-    // Return divergent blocks in reversed (historical) order
-    Ok(blocks.into_iter().rev().collect())
+    // Sort blocks by bix
+    blocks.sort_by(|a, b| a.bix.cmp(&b.bix));
+
+    // Return blocks
+    Ok(blocks)
 }
 
 
