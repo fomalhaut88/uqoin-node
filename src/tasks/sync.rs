@@ -16,7 +16,7 @@ use crate::scopes::blockchain::BlockQuery;
 
 
 const TRY_NODE_ATTEMPTS: usize = 10;
-const SYNC_BLOCKS_LIMIT: usize = 2000;
+const SYNC_BLOCKS_LIMIT: u64 = 2000;
 
 
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
