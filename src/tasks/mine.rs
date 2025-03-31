@@ -165,8 +165,7 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
                 state.roll_up(bix, &block, transactions, &appdata.schema);
 
                 // Update pool
-                let mut pool = appdata.pool.write().await;
-                pool.update_groups(&state);
+                appdata.pool.write().await.update(&state);
 
                 // Dump state
                 state.dump(&appdata.config.get_state_path()).await?;
