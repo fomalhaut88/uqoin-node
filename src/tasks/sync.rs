@@ -203,6 +203,7 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         // Roll back pool
         let senders = Transaction::calc_senders(&block_data.transactions, &state, &appdata.schema);
         pool.roll_down(&block_data.transactions, &state, &senders);
+        pool.update_groups(&state);
 
         // Decrement bix
         bix -= 1;
@@ -230,6 +231,7 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         // Roll up state and pool
         state.roll_up(block_data.bix, &block_data.block, &block_data.transactions, &appdata.schema);
         pool.roll_up(&block_data.transactions, &state);
+        pool.update_groups(&state);
 
         // Change previous block info
         block_info_prev = block_data.get_block_info();
