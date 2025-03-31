@@ -38,6 +38,9 @@ pub struct Config {
     /// Node sync timeout.
     pub node_sync_timeout: u64,
 
+    /// Maximum blocks to sync.
+    pub node_sync_block_count: u64,
+
     /// Mining timeout.
     pub mining_timeout: u64,
 
@@ -87,6 +90,8 @@ impl Config {
                                .map(|s| coin_order_by_symbol(&s)).unwrap_or(0),
             node_sync_timeout: env::var("NODE_SYNC_TIMEOUT")
                                    .map(|s| s.parse().unwrap()).unwrap_or(5000),
+            node_sync_block_count: env::var("NODE_SYNC_BLOCK_COUNT")
+                                   .map(|s| s.parse().unwrap()).unwrap_or(1000),
             mining_timeout: env::var("MINING_TIMEOUT")
                                 .map(|s| s.parse().unwrap()).unwrap_or(20000),
             mining_update_count: env::var("MINING_UPDATE_COUNT")

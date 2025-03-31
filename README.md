@@ -70,6 +70,7 @@ docker run \
 | `MINING_THREADS` | Number of threads in mining. | `1` |
 | `FEE_MIN` | Minimum fee coin symbol to accept transactions. | - |
 | `NODE_SYNC_TIMEOUT` | Timeout between node syncing (in milliseconds). | `5000` |
+| `NODE_SYNC_BLOCK_COUNT` | Maximum allowed number of blocks to sync. | `1000` |
 | `MINING_TIMEOUT` | Timeout between mining block attempts (in milliseconds). | `20000` |
 | `MINING_UPDATE_COUNT` | Number of transactions update while a new block is being mined. | `20` |
 | `MINING_NONCE_COUNT_PER_ITERATION` | Number of mining attempts per thread in iteration. | `100000` |

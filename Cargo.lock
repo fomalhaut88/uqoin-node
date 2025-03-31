@@ -2069,7 +2069,7 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 [[package]]
 name = "uqoin-core"
 version = "0.1.0"
-source = "git+https://github.com/fomalhaut88/uqoin-core.git#af9f29b7de00b5564ca2193ee309b06b86d38ab6"
+source = "git+https://github.com/fomalhaut88/uqoin-core.git#b7123ec2f9d01732b29d9bdd6aaa12eae07cd90d"
 dependencies = [
  "bip39",
  "finitelib",
