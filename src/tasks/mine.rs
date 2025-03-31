@@ -176,8 +176,8 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
             },
             Err(err) => {
                 warn!("Unable to build a block due: {:?}", err);
-                info!("Updating pool...");
-                appdata.pool.write().await.update_groups(&state);
+                info!("Clearing pool...");
+                appdata.pool.write().await.clear();
             },
         }
     } else {
