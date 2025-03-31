@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use rand::Rng;
-use log::info;
+use log::{info, warn};
 use tokio::time::{sleep, Duration};
 use uqoin_core::utils::U256;
 use uqoin_core::block::{Block, COMPLEXITY};
@@ -173,7 +173,11 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
 
             // Log
             info!("New block added, bix = {}", bix);
+        } else {
+            warn!("Unable to build a block due to validation");
         }
+    } else {
+        info!("Could not add block, hashes diverge");
     }
 
     Ok(())
