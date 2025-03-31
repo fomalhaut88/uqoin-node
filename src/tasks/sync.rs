@@ -197,11 +197,11 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         // Get local block data
         let block_data = blockchain.get_block_data(bix).await?;
 
-        // Calculate senders
-        let senders = Transaction::calc_senders(&block_data.transactions, &state, &appdata.schema);
+        // Roll back state
+        state.roll_down(bix, &block_data.block, &block_data.transactions, &appdata.schema);
 
-        // Roll back state and pool
-        state.roll_down(bix, &block_data.block, &block_data.transactions, &senders);
+        // Roll back pool
+        let senders = Transaction::calc_senders(&block_data.transactions, &state, &appdata.schema);
         pool.roll_down(&block_data.transactions, &state, &senders);
 
         // Decrement bix
@@ -228,7 +228,7 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         }
 
         // Roll up state and pool
-        state.roll_up(block_data.bix, &block_data.block, &block_data.transactions, &senders);
+        state.roll_up(block_data.bix, &block_data.block, &block_data.transactions, &appdata.schema);
         pool.roll_up(&block_data.transactions, &state);
 
         // Change previous block info

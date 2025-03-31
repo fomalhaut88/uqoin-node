@@ -147,7 +147,8 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
     // If block hash is relevant
     if block_hash == &last_block_info.hash {
         // Calculate senders
-        let senders = Transaction::calc_senders(&transactions, &state, &appdata.schema);
+        let senders = Transaction::calc_senders(&transactions, &state, 
+                                                &appdata.schema);
 
         // Create a new block
         let block = Block::build(
@@ -161,7 +162,7 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
             let bix = blockchain.push_new_block(&block, transactions).await?;
 
             // Change state
-            state.roll_up(bix, &block, transactions, &senders);
+            state.roll_up(bix, &block, transactions, &appdata.schema);
 
             // Update pool
             let mut pool = appdata.pool.write().await;

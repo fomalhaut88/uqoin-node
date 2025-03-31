@@ -4,7 +4,6 @@ use uqoin_core::pool::Pool;
 use uqoin_core::state::State;
 use uqoin_core::schema::Schema;
 use uqoin_core::blockchain::Blockchain;
-use uqoin_core::transaction::Transaction;
 
 use crate::utils::*;
 use crate::config::Config;
@@ -53,8 +52,7 @@ impl AppData {
                 let block = blockchain.get_block(bix).await?;
                 let transactions = 
                     blockchain.get_transactions_of_block(&block).await?;
-                let senders = Transaction::calc_senders(&transactions, &state, &self.schema);
-                state.roll_up(bix, &block, &transactions, &senders);
+                state.roll_up(bix, &block, &transactions, &self.schema);
             }
             state.dump(&self.config.get_state_path()).await?;
             info!("State is ready")
