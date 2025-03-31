@@ -156,27 +156,29 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
             transactions, U256::from_bytes(nonce), COMPLEXITY, &state, &senders
         );
 
-        // If block built
-        if let Some(block) = block {
-            // Push new block
-            let bix = blockchain.push_new_block(&block, transactions).await?;
+        match block {
+            Ok(block) => {
+                // Push new block
+                let bix = blockchain.push_new_block(&block, transactions).await?;
 
-            // Change state
-            state.roll_up(bix, &block, transactions, &appdata.schema);
+                // Change state
+                state.roll_up(bix, &block, transactions, &appdata.schema);
 
-            // Update pool
-            let mut pool = appdata.pool.write().await;
-            pool.update_groups(&state);
+                // Update pool
+                let mut pool = appdata.pool.write().await;
+                pool.update_groups(&state);
 
-            // Dump state
-            state.dump(&appdata.config.get_state_path()).await?;
+                // Dump state
+                state.dump(&appdata.config.get_state_path()).await?;
 
-            // Log
-            info!("New block added, bix = {}", bix);
-        } else {
-            warn!("Unable to build a block due to validation");
-            info!("Updating pool...");
-            appdata.pool.write().await.update_groups(&state);
+                // Log
+                info!("New block added, bix = {}", bix);
+            },
+            Err(err) => {
+                warn!("Unable to build a block due: {:?}", err);
+                info!("Updating pool...");
+                appdata.pool.write().await.update_groups(&state);
+            },
         }
     } else {
         info!("Could not add block, hashes diverge");
