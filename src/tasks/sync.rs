@@ -2,7 +2,6 @@ use log::{info, error};
 use rand::prelude::IndexedRandom;
 use tokio::io::{Error, ErrorKind};
 use tokio::time::{sleep, Duration};
-use tokio::task::JoinSet;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use uqoin_core::block::{BlockInfo, BlockData, COMPLEXITY};
@@ -13,11 +12,10 @@ use uqoin_core::transaction::Transaction;
 
 use crate::async_try_many;
 use crate::utils::*;
-use crate::scopes::blockchain::BlockQuery;
+use crate::scopes::blockchain::{BlockQuery, BlockManyQuery};
 
 
 const TRY_NODE_ATTEMPTS: usize = 10;
-const SYNC_BLOCKS_LIMIT: u64 = 2000;
 
 
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
@@ -54,8 +52,10 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                     info!("Need to sync after bix = {}", bix_sync);
 
                     // Limit the block count to sync
-                    let bix_until = std::cmp::min(last_info_remote.bix, 
-                                                  bix_sync + SYNC_BLOCKS_LIMIT);
+                    let bix_until = std::cmp::min(
+                        last_info_remote.bix, 
+                        bix_sync + appdata.config.node_sync_block_count
+                    );
 
                     // Request for remote blocks
                     let blocks = request_for_remote_blocks(
@@ -144,40 +144,11 @@ async fn request_for_divergent_bix(bix_last: u64, node: &str,
 
 async fn request_for_remote_blocks(bix_from: u64, bix_to: u64, node: &str) -> 
                                    TokioResult<Vec<BlockData>> {
-    // Empty blocks vector
-    let mut blocks: Vec<BlockData> = Vec::with_capacity(
-        (bix_to + 1 - bix_from) as usize
-    );
-
-    // Request in parallel with chunks
-    for chunk in (bix_from..=bix_to).collect::<Vec<u64>>().chunks(100) {
-        // Join set from tokio
-        let mut js = JoinSet::<TokioResult<BlockData>>::new();
-
-        // Start requests
-        for bix in chunk.into_iter().cloned() {
-            let node = node.to_string();
-            js.spawn(async move {
-                async_try_many!(
-                    TRY_NODE_ATTEMPTS, request_node, 
-                    &node, "/blockchain/block-data",
-                    Some(BlockQuery { bix: Some(bix) })
-                )
-            });
-        }
-
-        // Collect responses
-        while let Some(res) = js.join_next().await {
-            let block_data: BlockData = res??;
-            blocks.push(block_data);
-        }
-    }
-
-    // Sort blocks by bix
-    blocks.sort_by(|a, b| a.bix.cmp(&b.bix));
-
-    // Return blocks
-    Ok(blocks)
+    async_try_many!(
+        TRY_NODE_ATTEMPTS, request_node, 
+        &node, "/blockchain/block-many",
+        Some(BlockManyQuery { bix: bix_from, count: bix_to + 1 - bix_from })
+    )
 }
 
 
