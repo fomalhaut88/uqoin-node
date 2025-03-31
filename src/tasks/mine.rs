@@ -175,6 +175,8 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
             info!("New block added, bix = {}", bix);
         } else {
             warn!("Unable to build a block due to validation");
+            info!("Updating pool...");
+            appdata.pool.write().await.update_groups(&state);
         }
     } else {
         info!("Could not add block, hashes diverge");
