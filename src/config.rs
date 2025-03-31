@@ -66,7 +66,7 @@ impl Config {
 
         let nodes: Vec<String> = env::var("NODES")
             .map(|l| l.split_whitespace().map(|s| s.to_string()).collect())
-            .expect("Environment NODES is required");
+            .unwrap_or(vec![]);
 
         let data_path = env::var("DATA_PATH").unwrap_or("./tmp".to_string());
 

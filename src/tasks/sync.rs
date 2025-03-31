@@ -9,6 +9,7 @@ use uqoin_core::block::{BlockInfo, BlockData, COMPLEXITY};
 use uqoin_core::blockchain::Blockchain;
 use uqoin_core::state::State;
 use uqoin_core::pool::Pool;
+use uqoin_core::transaction::Transaction;
 
 use crate::async_try_many;
 use crate::utils::*;
@@ -80,7 +81,7 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         *state = state_new;
 
                         // Merge pool
-                        pool.merge(&pool_new, &appdata.schema, &state);
+                        pool.merge(&pool_new, &state);
 
                         // Dump state
                         state.dump(&appdata.config.get_state_path()).await?;
@@ -196,10 +197,12 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         // Get local block data
         let block_data = blockchain.get_block_data(bix).await?;
 
+        // Calculate senders
+        let senders = Transaction::calc_senders(&block_data.transactions, &state, &appdata.schema);
+
         // Roll back state and pool
-        state.roll_down(bix, &block_data.block, &block_data.transactions, 
-                        &appdata.schema);
-        pool.roll_down(&block_data.transactions, &appdata.schema, &state);
+        state.roll_down(bix, &block_data.block, &block_data.transactions, &senders);
+        pool.roll_down(&block_data.transactions, &state, &senders);
 
         // Decrement bix
         bix -= 1;
@@ -209,10 +212,13 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
     let mut is_valid = true;
     let mut block_info_prev = blockchain.get_block_info(bix_sync).await?;
     for block_data in blocks.iter() {
+        // Calculate senders
+        let senders = Transaction::calc_senders(&block_data.transactions, &state, &appdata.schema);
+
         // Validate the block
         let validation_result = block_data.block.validate(
             &block_data.transactions, &block_info_prev, COMPLEXITY, 
-            &appdata.schema, &state
+            &state, &senders
         );
 
         if let Err(err) = validation_result {
@@ -222,9 +228,8 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         }
 
         // Roll up state and pool
-        state.roll_up(block_data.bix, &block_data.block, 
-                      &block_data.transactions, &appdata.schema);
-        pool.roll_up(&block_data.transactions, &appdata.schema, &state);
+        state.roll_up(block_data.bix, &block_data.block, &block_data.transactions, &senders);
+        pool.roll_up(&block_data.transactions, &state);
 
         // Change previous block info
         block_info_prev = block_data.get_block_info();

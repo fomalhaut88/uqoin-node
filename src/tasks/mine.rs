@@ -10,15 +10,6 @@ use uqoin_core::transaction::Transaction;
 use crate::utils::*;
 
 
-// const MINING_TIMEOUT: u64 = 10000;
-// const MINING_UPDATE_COUNT: u64 = 10;
-// const MINING_NONCE_COUNT_PER_ITERATION: usize = 100000;
-// const MINING_GROUPS_MAX: Option<usize> = None;
-
-// const MINING_VALIDATE_ITER_TIMEOUT: u64 = 
-//     MINING_TIMEOUT / MINING_UPDATE_COUNT;
-
-
 pub async fn task(appdata: WebAppData) -> TokioResult<()> {
     // Input data for threads
     let block_hash_arc: Arc<RwLock<Option<U256>>> = 
@@ -155,11 +146,13 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
 
     // If block hash is relevant
     if block_hash == &last_block_info.hash {
+        // Calculate senders
+        let senders = Transaction::calc_senders(&transactions, &state, &appdata.schema);
+
         // Create a new block
         let block = Block::build(
             last_block_info, appdata.config.public_key.clone().unwrap(),
-            transactions, U256::from_bytes(nonce), COMPLEXITY, 
-            &appdata.schema, &state
+            transactions, U256::from_bytes(nonce), COMPLEXITY, &state, &senders
         );
 
         // If block built
@@ -168,11 +161,11 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
             let bix = blockchain.push_new_block(&block, transactions).await?;
 
             // Change state
-            state.roll_up(bix, &block, transactions, &appdata.schema);
+            state.roll_up(bix, &block, transactions, &senders);
 
             // Update pool
             let mut pool = appdata.pool.write().await;
-            pool.update_groups(&appdata.schema, &state);
+            pool.update_groups(&state);
 
             // Dump state
             state.dump(&appdata.config.get_state_path()).await?;

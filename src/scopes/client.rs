@@ -33,18 +33,20 @@ async fn send_view(appdata: WebAppData,
         // Get state
         let state = appdata.state.read().await;
 
+        // Calc senders
+        let senders = Transaction::calc_senders(&transactions, &state, &appdata.schema);
+
         // Create group from raw transactions
-        if let Some(group) = Group::new(transactions.to_vec(), &appdata.schema, 
-                                        &state) {
+        if let Some(group) = Group::new(transactions.to_vec(), &state, &senders) {
             // Get client fee
             let fee_order = group.get_fee()
-                .map(|tr| tr.get_order(&state, &appdata.schema)).unwrap_or(0);
+                .map(|tr| tr.get_order(&state, &senders[0])).unwrap_or(0);
 
             // Check fee
             if fee_order >= appdata.config.fee_min_order {
                 // Insert the group into pool
                 let mut pool = appdata.pool.write().await;
-                let added = pool.add_group(&group, &appdata.schema, &state);
+                let added = pool.add_group(&group, &state, &senders[0]);
                 if added {
                     return Ok(HttpResponse::Ok().finish());
                 }
