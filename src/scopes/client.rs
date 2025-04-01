@@ -28,34 +28,42 @@ async fn coins_view(appdata: WebAppData,
 /// Send transaction group.
 async fn send_view(appdata: WebAppData, 
                    transactions: web::Json<Vec<Transaction>>) -> APIResult {
-    // Check lite mode
-    if !appdata.config.lite_mode {
+    // Check lite mode (if private key is not provided)
+    if appdata.config.lite_mode {
+        Ok(HttpResponse::BadRequest().json(ErrorResponse::new("LiteMode")))
+    } else {
         // Get state
         let state = appdata.state.read().await;
 
         // Calc senders
-        let senders = Transaction::calc_senders(&transactions, &state, &appdata.schema);
+        let senders = Transaction::calc_senders(&transactions, &state, 
+                                                &appdata.schema);
 
         // Create group from raw transactions
-        if let Some(group) = Group::new(transactions.to_vec(), &state, &senders) {
-            // Get client fee
-            let fee_order = group.get_fee()
-                .map(|tr| tr.get_order(&state, &senders[0])).unwrap_or(0);
+        match Group::new(transactions.to_vec(), &state, &senders) {
+            Ok(group) => {
+                // Get client fee
+                let fee_order = group.get_fee()
+                    .map(|tr| tr.get_order(&state, &senders[0])).unwrap_or(0);
 
-            // Check fee
-            if fee_order >= appdata.config.fee_min_order {
-                // Insert the group into pool
-                let mut pool = appdata.pool.write().await;
-                let added = pool.add_group(&group, &state, &senders[0]);
-                if added {
-                    return Ok(HttpResponse::Ok().finish());
+                // Check fee
+                if fee_order >= appdata.config.fee_min_order {
+                    // Insert the group into pool
+                    match appdata.pool.write().await.add_group(&group, &state, 
+                                                               &senders[0]) {
+                        Ok(_) => Ok(HttpResponse::Ok().finish()),
+                        Err(err) => Ok(HttpResponse::BadRequest()
+                                            .json(ErrorResponse::from(err))),
+                    }
+                } else {
+                    Ok(HttpResponse::BadRequest()
+                            .json(ErrorResponse::new("Fee")))
                 }
-            }
+            },
+            Err(err) => Ok(HttpResponse::BadRequest()
+                                .json(ErrorResponse::from(err))),
         }
     }
-
-    // TODO: Implement more verbose information on error.
-    Ok(HttpResponse::BadRequest().finish())
 }
 
 
