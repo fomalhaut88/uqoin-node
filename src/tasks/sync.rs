@@ -109,6 +109,8 @@ async fn request_node<T: DeserializeOwned, Q: Serialize>(
         format!("{}{}", node, path)
     };
 
+    info!("External node request: {}", url);
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5)).build().unwrap();
 
