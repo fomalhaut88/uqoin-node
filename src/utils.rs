@@ -81,10 +81,10 @@ pub async fn find_divergence<F>(ix_last: u64, check: F) -> TkResult<u64>
 macro_rules! async_try_many {
     ($count:expr, $func:ident $(, $arg:expr)*) => {
         {
-            let mut res = Err(Error::new(ErrorKind::Other, "Too many errors"));
+            let mut res = Err(ErrorKind::Other.into());
             for _ in 0..$count {
-                if let Ok(r) = $func($($arg,)*).await {
-                    res = Ok(r);
+                res = $func($($arg,)*).await;
+                if res.is_ok() {
                     break;
                 }
             }
