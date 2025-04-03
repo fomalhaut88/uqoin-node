@@ -9,6 +9,8 @@ use serde::Serialize;
 use tokio::io::{Result as TokioResult};
 use actix_web::{get, web, App, HttpResponse, HttpServer};
 use actix_web::middleware::Logger;
+use actix_web::http::header;
+use actix_cors::Cors;
 
 use crate::utils::*;
 use crate::config::Config;
@@ -68,8 +70,14 @@ async fn main() -> TokioResult<()> {
 
     // Create API server
     let server = HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allowed_methods(vec!["GET", "POST"])
+            .allowed_header(header::CONTENT_TYPE);
+
         App::new()
             .wrap(Logger::default())
+            .wrap(cors)
             .app_data(appdata.clone())
             .service(version_view)
             .service(load_scope_coin())
