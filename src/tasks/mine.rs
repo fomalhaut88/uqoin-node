@@ -117,7 +117,7 @@ async fn get_transactions_from_pool<R: Rng>(
         rng: &mut R, appdata: &WebAppData) -> (U256, Vec<Transaction>) {
     // Get state and pool
     let state = appdata.state.read().await;
-    let pool = appdata.pool.write().await;
+    let pool = appdata.pool.read().await;
 
     // Extract transactions for a new block from pool
     let transactions = pool.prepare(
@@ -137,12 +137,12 @@ async fn get_transactions_from_pool<R: Rng>(
 async fn add_new_block(block_hash: &U256, transactions: &[Transaction], 
                        nonce: &[u8; 32], appdata: &WebAppData) -> 
                        std::io::Result<()> {
+    // Lock blockchain to change
+    let blockchain = appdata.blockchain.write().await;
+
     // Lock state for change below
     let mut state = appdata.state.write().await;
     let last_block_info = state.get_last_block_info();
-
-    // Lock blockchain to change
-    let blockchain = appdata.blockchain.write().await;
 
     // If block hash is relevant
     if block_hash == &last_block_info.hash {
@@ -174,7 +174,7 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
                 info!("New block added, bix = {}", bix);
             },
             Err(err) => {
-                warn!("Unable to build a block due: {:?}", err);
+                warn!("Unable to build a block: {:?}", err);
                 info!("Clearing pool...");
                 appdata.pool.write().await.clear();
             },

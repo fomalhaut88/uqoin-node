@@ -90,6 +90,8 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                     } else {
                         info!("Blocks are invalid in {}", random_node);
                     }
+                } else {
+                    info!("No need to sync with {}", random_node);
                 }
             } else {
                 info!("Cound not reach the node {}", random_node);
