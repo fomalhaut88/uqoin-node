@@ -117,7 +117,10 @@ async fn get_transactions_from_pool<R: Rng>(
         rng: &mut R, appdata: &WebAppData) -> (U256, Vec<Transaction>) {
     // Get state and pool
     let state = appdata.state.read().await;
-    let pool = appdata.pool.read().await;
+    let mut pool = appdata.pool.write().await;
+
+    // Update pool before preparing transactions
+    pool.update(&state);
 
     // Extract transactions for a new block from pool
     let transactions = pool.prepare(
