@@ -81,7 +81,9 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         *state = state_new;
 
                         // Merge pool
-                        pool.merge(&pool_new, &state);
+                        let pool_clone = pool.clone();
+                        *pool = pool_new;
+                        pool.merge(&pool_clone, &state, &appdata.schema);
 
                         // Dump state
                         state.dump(&appdata.config.get_state_path()).await?;
