@@ -173,10 +173,12 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         let block_data = blockchain.get_block_data(bix).await?;
 
         // Roll back state
-        state.roll_down(bix, &block_data.block, &block_data.transactions, &appdata.schema);
+        state.roll_down(bix, &block_data.block, &block_data.transactions, 
+                        &appdata.schema);
 
         // Roll back pool
-        let senders = Transaction::calc_senders(&block_data.transactions, &state, &appdata.schema);
+        let senders = Transaction::calc_senders(&block_data.transactions, 
+                                                &state, &appdata.schema);
         pool.roll_down(&block_data.transactions, &state, &senders);
         pool.update(&state);
 
@@ -189,7 +191,8 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
     let mut block_info_prev = blockchain.get_block_info(bix_sync).await?;
     for block_data in blocks.iter() {
         // Calculate senders
-        let senders = Transaction::calc_senders(&block_data.transactions, &state, &appdata.schema);
+        let senders = Transaction::calc_senders(&block_data.transactions, 
+                                                &state, &appdata.schema);
 
         // Validate the block
         let validation_result = block_data.block.validate(
@@ -204,7 +207,8 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         }
 
         // Roll up state and pool
-        state.roll_up(block_data.bix, &block_data.block, &block_data.transactions, &appdata.schema);
+        state.roll_up(block_data.bix, &block_data.block, 
+                      &block_data.transactions, &appdata.schema);
         pool.roll_up(&block_data.transactions, &state);
         pool.update(&state);
 

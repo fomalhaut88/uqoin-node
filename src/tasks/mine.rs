@@ -168,7 +168,9 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
                 state.roll_up(bix, &block, transactions, &appdata.schema);
 
                 // Update pool
-                appdata.pool.write().await.update(&state);
+                let mut pool = appdata.pool.write().await;
+                pool.roll_up(&transactions, &state);
+                pool.update(&state);
 
                 // Dump state
                 state.dump(&appdata.config.get_state_path()).await?;
@@ -180,6 +182,8 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
                 warn!("Unable to build a block: {:?}", err);
                 info!("Clearing pool...");
                 appdata.pool.write().await.clear();
+                // It may affect on mining threads because they can mine
+                // old transactions without a stop.
             },
         }
     } else {
