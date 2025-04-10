@@ -24,6 +24,13 @@ pub struct BlockManyQuery {
 }
 
 
+#[derive(Deserialize)]
+struct RawQuery {
+    offset: usize,
+    count: usize,
+}
+
+
 /// Get block info by `bix`.
 async fn block_info_view(appdata: WebAppData, 
                          query: web::Query<BlockQuery>) -> APIResult {
@@ -99,10 +106,31 @@ async fn transaction_view(appdata: WebAppData,
 }
 
 
+/// Get bytes of blocks.
+async fn block_raw_view(appdata: WebAppData, 
+                        query: web::Query<RawQuery>) -> APIResult {
+    let blockchain = appdata.blockchain.read().await;
+    let bytes = blockchain.get_block_raw(query.offset, query.count).await?;
+    Ok(HttpResponse::Ok().body(bytes))
+}
+
+
+/// Get bytes of transactions.
+async fn transaction_raw_view(appdata: WebAppData, 
+                              query: web::Query<RawQuery>) -> APIResult {
+    let blockchain = appdata.blockchain.read().await;
+    let bytes = blockchain.get_transaction_raw(query.offset, 
+                                               query.count).await?;
+    Ok(HttpResponse::Ok().body(bytes))
+}
+
+
 pub fn load_scope() -> Scope {
     web::scope("/blockchain")
         .route("/block-info", web::get().to(block_info_view))
         .route("/block-data", web::get().to(block_data_view))
         .route("/block-many", web::get().to(block_many_view))
+        .route("/block-raw", web::get().to(block_raw_view))
         .route("/transaction", web::get().to(transaction_view))
+        .route("/transaction-raw", web::get().to(transaction_raw_view))
 }

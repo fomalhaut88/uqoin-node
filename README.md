@@ -42,6 +42,12 @@ docker run \
     uqoin-node
 ```
 
+## Test run
+
+```
+NODES="http://89.179.245.236:5772 http://89.179.245.236:5773" WORKERS=4 MINING_THREADS=4 NODE_SYNC_TIMEOUT=10000 cargo run --release
+```
+
 ## API description
 
 | Path | Method | Description | Params | Input body example | Output body example |
