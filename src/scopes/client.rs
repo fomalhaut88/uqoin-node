@@ -49,12 +49,8 @@ async fn send_view(appdata: WebAppData,
                 // Check fee
                 if fee_order >= appdata.config.fee_min_order {
                     // Insert the group into pool
-                    match appdata.pool.write().await.add_group(&group, &state, 
-                                                               &senders[0]) {
-                        Ok(_) => Ok(HttpResponse::Ok().finish()),
-                        Err(err) => Ok(HttpResponse::BadRequest()
-                                            .json(ErrorResponse::from(err))),
-                    }
+                    appdata.pool.write().await.add(group, senders[0].clone());
+                    Ok(HttpResponse::Ok().finish())
                 } else {
                     Ok(HttpResponse::BadRequest()
                             .json(ErrorResponse::new("Fee")))
