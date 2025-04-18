@@ -7,8 +7,7 @@ use serde::de::DeserializeOwned;
 use uqoin_core::block::{BlockInfo, BlockData, COMPLEXITY};
 use uqoin_core::blockchain::Blockchain;
 use uqoin_core::state::State;
-use uqoin_core::pool::Pool;
-use uqoin_core::transaction::Transaction;
+use uqoin_core::transaction::{Transaction, Group, group_transactions};
 
 use crate::async_try_many;
 use crate::utils::*;
@@ -65,7 +64,7 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                     info!("Got {} blocks to roll up", blocks.len());
 
                     // Check divergent blocks
-                    if let Some((state_new, pool_new)) = 
+                    if let Some((state_new, trs_vec)) = 
                             check_divergent_blocks(&blocks, &appdata).await? {
                         info!("Syncing with {}", random_node);
 
@@ -84,6 +83,18 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         // let pool_clone = pool.clone();
                         // *pool = pool_new;
                         // pool.merge(&pool_clone, &state, &appdata.schema);
+
+                        // Update pool
+                        for trs in trs_vec.into_iter() {
+                            let senders = Transaction::calc_senders(
+                                &trs, &state, &appdata.schema
+                            );
+                            if let Ok(group) = Group::new(trs, &state, 
+                                                          &senders) {
+                                pool.add(group, senders[0].clone());
+                            }
+                        }
+                        pool.update(&state, &appdata.schema);
 
                         // Dump state
                         state.dump(&appdata.config.get_state_path()).await?;
@@ -159,11 +170,12 @@ async fn request_for_remote_blocks(bix_from: u64, bix_to: u64, node: &str) ->
 
 
 async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) -> 
-                                TokioResult<Option<(State, Pool)>> {
+                                TokioResult<Option<(State, Vec<Vec<Transaction>>)>> {
     // Get blockchain and clone the current state and pool
     let blockchain = appdata.blockchain.read().await;
     let mut state = appdata.state.read().await.clone();
-    let mut pool = appdata.pool.read().await.clone();
+    let mut trs_vec = Vec::new();
+    // let mut pool = appdata.pool.read().await.clone();
 
     let bix_sync = blocks[0].bix - 1;
 
@@ -178,11 +190,22 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         state.roll_down(bix, &block_data.block, &block_data.transactions, 
                         &appdata.schema);
 
-        // Roll back pool
+        // // Roll back pool
+        // let senders = Transaction::calc_senders(&block_data.transactions, 
+        //                                         &state, &appdata.schema);
+        // pool.roll_down(&block_data.transactions, &state, &senders);
+        // pool.update(&state);
+
+        // Calculate senders
         let senders = Transaction::calc_senders(&block_data.transactions, 
                                                 &state, &appdata.schema);
-        pool.roll_down(&block_data.transactions, &state, &senders);
-        pool.update(&state);
+
+        // Collect rolled down groups of transactions
+        for (_, group, _) in group_transactions(block_data.transactions, &state, 
+                                                &senders) {
+            let trs = group.transactions().to_vec();
+            trs_vec.push(trs);
+        }
 
         // Decrement bix
         bix -= 1;
@@ -208,18 +231,18 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
             break;
         }
 
-        // Roll up state and pool
+        // Roll up state
         state.roll_up(block_data.bix, &block_data.block, 
                       &block_data.transactions, &appdata.schema);
-        pool.roll_up(&block_data.transactions, &state);
-        pool.update(&state);
+        // pool.roll_up(&block_data.transactions, &state);
+        // pool.update(&state);
 
         // Change previous block info
         block_info_prev = block_data.get_block_info();
     }
 
     if is_valid {
-        Ok(Some((state, pool)))
+        Ok(Some((state, trs_vec)))
     } else {
         Ok(None)
     }

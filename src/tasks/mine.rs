@@ -117,14 +117,16 @@ async fn get_transactions_from_pool<R: Rng>(
         rng: &mut R, appdata: &WebAppData) -> (U256, Vec<Transaction>) {
     // Get state and pool
     let state = appdata.state.read().await;
-    let mut pool = appdata.pool.write().await;
+    let pool = appdata.pool.read().await;
 
-    // Update pool before preparing transactions
-    pool.update(&state);
+    // // Update pool before preparing transactions
+    // pool.update(&state);
 
     // Extract transactions for a new block from pool
-    let transactions = pool.prepare(
-        rng, &appdata.schema, &state, 
+    // TODO: Pass senders from pool.prepare to add_new_block so it will increase
+    // the performance.
+    let (transactions, _) = pool.prepare(
+        rng, &state, &appdata.schema, 
         &appdata.config.private_key.as_ref().unwrap(), 
         appdata.config.mining_groups_max
     );
@@ -169,8 +171,7 @@ async fn add_new_block(block_hash: &U256, transactions: &[Transaction],
 
                 // Update pool
                 let mut pool = appdata.pool.write().await;
-                pool.roll_up(&transactions, &state);
-                pool.update(&state);
+                pool.update(&state, &appdata.schema);
 
                 // Dump state
                 state.dump(&appdata.config.get_state_path()).await?;
