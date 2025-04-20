@@ -4,48 +4,24 @@ Node for Uqoin ecosystem.
 
 ## Run in docker
 
-Build image example:
+Pull the image: `docker pull fomalhaut88/uqoin-node`
+
+Run command:
 
 ```
-docker build -t uqoin-node .
-```
-
-Run two docker containers locally example:
-
-```
-docker run \
-    -it --rm \
-    -p 8081:5772 \
-    --volume ./tmp/1:/app/data \
-    --name uqoin-node-app-1 \
+sudo docker run \
+    -p 5772:5772 \
+    --restart always \
+    --volume /tmp/uqoin-node:/app/data \
+    --name uqoin-node-app \
     --env PRIVATE_KEY=054A773A579D5F08817F1EFA5B19837C25DBB4A2D07C67D10D683A9A22B6D96A \
-    --env NODES="http://172.17.0.2:5772 http://172.17.0.3:5772" \
+    --env NODES="http://85.99.244.254:5772 http://89.179.245.236:5772 http://89.179.245.236:5773" \
     --env WORKERS=4 \
     --env MINING_THREADS=4 \
     --env MINING_GROUPS_MAX=20 \
     --env NODE_SYNC_TIMEOUT=10000 \
-    --env FEE_MIN=C32 \
-    uqoin-node
-
-docker run \
-    -it --rm \
-    -p 8082:5772 \
-    --volume ./tmp/2:/app/data \
-    --name uqoin-node-app-2 \
-    --env PRIVATE_KEY=0250F121A6DB4C3114B09F7905A274D2DB024A0CA9DDDA5E41EEF97A5E26589B \
-    --env NODES="http://172.17.0.2:5772 http://172.17.0.3:5772" \
-    --env WORKERS=4 \
-    --env MINING_THREADS=4 \
-    --env MINING_GROUPS_MAX=20 \
-    --env NODE_SYNC_TIMEOUT=10000 \
-    --env FEE_MIN=C32 \
-    uqoin-node
-```
-
-## Test run
-
-```
-NODES="http://89.179.245.236:5772 http://89.179.245.236:5773" WORKERS=4 MINING_THREADS=4 NODE_SYNC_TIMEOUT=10000 cargo run --release
+    --env FEE_MIN=D1 \
+    -d fomalhaut88/uqoin-node
 ```
 
 ## API description
