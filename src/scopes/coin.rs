@@ -2,6 +2,7 @@ use serde::Deserialize;
 use actix_web::{web, HttpResponse, Scope};
 use uqoin_core::utils::U256;
 
+use crate::api_check;
 use crate::utils::*;
 
 
@@ -14,6 +15,7 @@ struct Query {
 /// Get coin info.
 async fn info_view(appdata: WebAppData, 
                    query: web::Query<Query>) -> APIResult {
+    api_check!(!*appdata.is_syncing.read().await, "Syncing");
     let coin = U256::from_hex(&query.coin);
     let state = appdata.state.read().await;
     if let Some(coin_info) = state.get_coin_info(&coin) {

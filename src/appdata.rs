@@ -16,6 +16,7 @@ pub struct AppData {
     pub state: RwLock<State>,
     pub blockchain: RwLock<Blockchain>,
     pub nodes: RwLock<Vec<String>>,
+    pub is_syncing: RwLock<bool>,
 }
 
 
@@ -26,9 +27,10 @@ impl AppData {
         let state = RwLock::new(State::new());
         let blockchain = RwLock::new(Blockchain::new(&config.data_path).await?);
         let nodes = RwLock::new(config.nodes.clone());
+        let is_syncing = RwLock::new(true);
 
         let mut instance = Self {
-            config, schema, pool, state, blockchain, nodes
+            config, schema, pool, state, blockchain, nodes, is_syncing
         };
         instance.initialize().await?;
         info!("AppData is ready");

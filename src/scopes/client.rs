@@ -1,8 +1,10 @@
 use serde::Deserialize;
 use actix_web::{web, HttpResponse, Scope};
+use actix_web::http::header::ContentType;
 use uqoin_core::utils::*;
-use uqoin_core::transaction::{Transaction, Group};
+use uqoin_core::transaction::{Type, Transaction, Group};
 
+use crate::api_check;
 use crate::utils::*;
 
 
@@ -15,12 +17,13 @@ struct Query {
 /// Get coins belonging to the wallet at the current last block.
 async fn coins_view(appdata: WebAppData, 
                     query: web::Query<Query>) -> APIResult {
+    api_check!(!*appdata.is_syncing.read().await, "Syncing");
     let wallet = U256::from_hex(&query.wallet);
     let state = appdata.state.read().await;
     if let Some(coins_map) = state.get_coins(&wallet) {
         Ok(HttpResponse::Ok().json(coins_map))
     } else {
-        Ok(HttpResponse::Ok().body("{}"))
+        Ok(HttpResponse::Ok().insert_header(ContentType::json()).body("{}"))
     }
 }
 
@@ -28,38 +31,37 @@ async fn coins_view(appdata: WebAppData,
 /// Send transaction group.
 async fn send_view(appdata: WebAppData, 
                    transactions: web::Json<Vec<Transaction>>) -> APIResult {
+    // Check syncing
+    api_check!(!*appdata.is_syncing.read().await, "Syncing");
+
     // Check lite mode (if private key is not provided)
-    if appdata.config.lite_mode {
-        Ok(HttpResponse::BadRequest().json(ErrorResponse::new("LiteMode")))
-    } else {
-        // Get state
-        let state = appdata.state.read().await;
+    api_check!(!appdata.config.lite_mode, "LiteMode");
 
-        // Calc senders
-        let senders = Transaction::calc_senders(&transactions, &state, 
-                                                &appdata.schema);
+    // Get state
+    let state = appdata.state.read().await;
 
-        // Create group from raw transactions
-        match Group::new(transactions.to_vec(), &state, &senders) {
-            Ok(group) => {
-                // Get client fee
-                let fee_order = group.get_fee()
-                    .map(|tr| tr.get_order(&state, &senders[0])).unwrap_or(0);
+    // Calc senders
+    let senders = Transaction::calc_senders(&transactions, &state, 
+                                            &appdata.schema);
 
-                // Check fee
-                if fee_order >= appdata.config.fee_min_order {
-                    // Insert the group into pool
-                    appdata.pool.write().await.add(group, senders[0].clone());
-                    Ok(HttpResponse::Ok().finish())
-                } else {
-                    Ok(HttpResponse::BadRequest()
-                            .json(ErrorResponse::new("Fee")))
-                }
-            },
-            Err(err) => Ok(HttpResponse::BadRequest()
-                                .json(ErrorResponse::from(err))),
-        }
+    // Try to create group from raw transactions
+    let group = Group::new(transactions.to_vec(), &state, &senders)?;
+
+    // Skip split transactions for fee check
+    if (group.get_type() != Type::Split) || (!appdata.config.free_split) {
+        // Get client fee
+        let fee_order = group.get_fee()
+            .map(|tr| tr.get_order(&state, &senders[0])).unwrap_or(0);
+
+        // Check fee
+        api_check!(fee_order >= appdata.config.fee_min_order, "Fee");
     }
+
+    // Insert the group into pool
+    appdata.pool.write().await.add(group, senders[0].clone());
+
+    // Ok
+    Ok(HttpResponse::Ok().finish())
 }
 
 

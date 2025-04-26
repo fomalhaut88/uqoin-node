@@ -10,6 +10,7 @@ use crate::utils::*;
 struct NodeInfo {
     wallet: Option<U256>,
     fee: Option<String>,
+    free_split: bool,
     lite_mode: bool,
 }
 
@@ -30,8 +31,9 @@ async fn info_view(appdata: WebAppData) -> APIResult {
     } else {
         None
     };
+    let free_split = appdata.config.free_split;
     let lite_mode = appdata.config.lite_mode;
-    let node_info = NodeInfo { wallet, fee, lite_mode };
+    let node_info = NodeInfo { wallet, fee, free_split, lite_mode };
     Ok(HttpResponse::Ok().json(node_info))
 }
 
