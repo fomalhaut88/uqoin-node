@@ -56,6 +56,13 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         bix_sync + appdata.config.node_sync_block_count
                     );
 
+                    // Set syncing if there are too many blocks forward to sync
+                    if bix_until < last_info_remote.bix {
+                        if !*appdata.is_syncing.read().await {
+                            *appdata.is_syncing.write().await = true;
+                        }
+                    }
+
                     // Request for remote blocks
                     let blocks = request_for_remote_blocks(
                         bix_sync + 1, bix_until, &random_node
@@ -79,11 +86,6 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         // Update state
                         *state = state_new;
 
-                        // // Merge pool
-                        // let pool_clone = pool.clone();
-                        // *pool = pool_new;
-                        // pool.merge(&pool_clone, &state, &appdata.schema);
-
                         // Update pool
                         for trs in trs_vec.into_iter() {
                             let senders = Transaction::calc_senders(
@@ -98,6 +100,13 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
 
                         // Dump state
                         state.dump(&appdata.config.get_state_path()).await?;
+
+                        // Set is_syncing to `false` if everything is up to date
+                        if bix_until == last_info_remote.bix {
+                            if *appdata.is_syncing.read().await {
+                                *appdata.is_syncing.write().await = false;
+                            }
+                        }
 
                         info!("Synced with {} successfully", random_node);
                     } else {

@@ -55,6 +55,9 @@ pub struct Config {
 
     /// Lite mode
     pub lite_mode: bool,
+
+    /// Free split.
+    pub free_split: bool,
 }
 
 
@@ -102,6 +105,8 @@ impl Config {
             mining_groups_max: env::var("MINING_GROUPS_MAX")
                     .map(|s| s.parse().unwrap()).ok(),
             lite_mode,
+            free_split: env::var("FREE_SPLIT")
+                    .map(|s| s.parse().unwrap()).unwrap_or(true),
         }
     }
 

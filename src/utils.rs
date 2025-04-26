@@ -1,36 +1,13 @@
 use tokio::io::Result as TkResult;
-use serde::Serialize;
-use actix_web::{web, HttpResponse, Result as ActixResult, Error as ActixError};
-use uqoin_core::error::{Error as UqoinError};
+use actix_web::{web, HttpResponse, Result as ActixResult};
 
+use crate::error::JsonError;
 use crate::appdata::AppData;
 
 
 pub type TokioResult<T> = TkResult<T>;
-pub type APIResult = ActixResult<HttpResponse, ActixError>;
+pub type APIResult = ActixResult<HttpResponse, JsonError>;
 pub type WebAppData = web::Data<AppData>;
-
-
-/// Error structure that is convertable from uqoin-core errors.
-#[derive(Debug, Clone, Serialize)]
-pub struct ErrorResponse {
-    error: String,
-}
-
-
-impl ErrorResponse {
-    /// Create a new ErrorResponse instance.
-    pub fn new(message: &str) -> Self {
-        Self { error: message.to_string() }
-    }
-}
-
-
-impl From<UqoinError> for ErrorResponse {
-    fn from(err: UqoinError) -> Self {
-        Self::new(&err.to_string())
-    }
-}
 
 
 /// This function searchs for `ix` such that `check(ix) == true` and 

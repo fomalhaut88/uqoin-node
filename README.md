@@ -57,3 +57,4 @@ sudo docker run \
 | `MINING_UPDATE_COUNT` | Number of transactions update while a new block is being mined. | `20` |
 | `MINING_NONCE_COUNT_PER_ITERATION` | Number of mining attempts per thread in iteration. | `100000` |
 | `MINING_GROUPS_MAX` | Maximum number of groups in mined blocks. | - |
+| `FREE_SPLIT` | Allow split transactions without fee. | `true` |

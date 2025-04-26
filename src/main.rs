@@ -1,3 +1,4 @@
+mod error;
 mod utils;
 mod config;
 mod appdata;
