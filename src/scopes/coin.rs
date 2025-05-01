@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use actix_web::{web, HttpResponse, Scope};
+use actix_web::http::header::ContentType;
 use uqoin_core::utils::U256;
 
 use crate::api_check;
@@ -21,7 +22,7 @@ async fn info_view(appdata: WebAppData,
     if let Some(coin_info) = state.get_coin_info(&coin) {
         Ok(HttpResponse::Ok().json(coin_info))
     } else {
-        Ok(HttpResponse::Ok().body("{}"))
+        Ok(HttpResponse::Ok().insert_header(ContentType::json()).body("{}"))
     }
 }
 

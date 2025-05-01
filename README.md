@@ -29,7 +29,8 @@ sudo docker run \
 | Path | Method | Description | Params | Input body example | Output body example |
 |---|---|---|---|---|---|
 | `/version` | `GET` | Get version of the node. | | | `{"version": "1.0.0"}` |
-| `/client/coins` | `GET` | Get coins of the client. | `wallet: str` - wallet address | | `{35: [...], ...}` |
+| `/client/coins` | `GET` | Get coins of the client. | `wallet: str` - wallet address, `order: int` - order of coins (optional; it returns list of coins instead of full map, made to the optimization purposes) | | `{35: [...], ...}` |
+| `/client/coins/hash` | `GET` | Get coins hashs for each order of the client. | `wallet: str` - wallet address, `order: int` - order of coins (optional; it returns single hash of coins instead of full map, made to the optimization purposes) | | `{35: ..., ...}` |
 | `/client/send` | `POST` | Send transaction to the node. | | `[{"coin": "...", "addr": "...", "sign_r": "...", "sign_s": "..."}, ...]` | |
 | `/coin/info` | `GET` | Get creation information about the coin. | `coin: str` - coin number | | `{"order": ..., "tix": ..., "bix": ...}` |
 | `/coin/owner` | `GET` | Get current owner wallet of the coin. | `coin: str` - coin number | | `{"wallet": ...}` |
