@@ -12,7 +12,7 @@ Run command:
 sudo docker run \
     -p 5772:5772 \
     --restart always \
-    --volume /tmp/uqoin-node:/app/data \
+    --volume /var/lib/uqoin-node:/app/data \
     --name uqoin-node-app \
     --env PRIVATE_KEY=054A773A579D5F08817F1EFA5B19837C25DBB4A2D07C67D10D683A9A22B6D96A \
     --env NODES="http://85.99.244.254:5772 http://89.179.245.236:5772 http://89.179.245.236:5773" \
