@@ -119,9 +119,6 @@ async fn get_transactions_from_pool<R: Rng>(
     let state = appdata.state.read().await;
     let pool = appdata.pool.read().await;
 
-    // // Update pool before preparing transactions
-    // pool.update(&state);
-
     // Extract transactions for a new block from pool
     // TODO: Pass senders from pool.prepare to add_new_block so it will increase
     // the performance.
