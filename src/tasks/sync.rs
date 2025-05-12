@@ -58,9 +58,7 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
 
                     // Set syncing if there are too many blocks forward to sync
                     if bix_until < last_info_remote.bix {
-                        if !*appdata.is_syncing.read().await {
-                            *appdata.is_syncing.write().await = true;
-                        }
+                        set_syncing_status(&appdata, true).await;
                     }
 
                     // Request for remote blocks
@@ -101,24 +99,35 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         // Dump state
                         state.dump(&appdata.config.get_state_path()).await?;
 
-                        // Set is_syncing to `false` if everything is up to date
+                        // Unset is_syncing if everything is up to date
                         if bix_until == last_info_remote.bix {
-                            if *appdata.is_syncing.read().await {
-                                *appdata.is_syncing.write().await = false;
-                            }
+                            set_syncing_status(&appdata, false).await;
                         }
 
                         info!("Synced with {} successfully", random_node);
                     } else {
+                        // Unset is_syncing if block is invalid
+                        set_syncing_status(&appdata, false).await;
+
                         info!("Blocks are invalid in {}", random_node);
                     }
                 } else {
+                    // Unset is_syncing if nothing to sync
+                    set_syncing_status(&appdata, false).await;
+
                     info!("No need to sync with {}", random_node);
                 }
             } else {
                 info!("Cound not reach the node {}", random_node);
             }
         }
+    }
+}
+
+
+async fn set_syncing_status(appdata: &WebAppData, value: bool) {
+    if *appdata.is_syncing.read().await != value {
+        *appdata.is_syncing.write().await = value;
     }
 }
 
@@ -184,7 +193,6 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
     let blockchain = appdata.blockchain.read().await;
     let mut state = appdata.state.read().await.clone();
     let mut trs_vec = Vec::new();
-    // let mut pool = appdata.pool.read().await.clone();
 
     let bix_sync = blocks[0].bix - 1;
 
@@ -198,12 +206,6 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         // Roll back state
         state.roll_down(bix, &block_data.block, &block_data.transactions, 
                         &appdata.schema);
-
-        // // Roll back pool
-        // let senders = Transaction::calc_senders(&block_data.transactions, 
-        //                                         &state, &appdata.schema);
-        // pool.roll_down(&block_data.transactions, &state, &senders);
-        // pool.update(&state);
 
         // Calculate senders
         let senders = Transaction::calc_senders(&block_data.transactions, 
@@ -243,8 +245,6 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
         // Roll up state
         state.roll_up(block_data.bix, &block_data.block, 
                       &block_data.transactions, &appdata.schema);
-        // pool.roll_up(&block_data.transactions, &state);
-        // pool.update(&state);
 
         // Change previous block info
         block_info_prev = block_data.get_block_info();
