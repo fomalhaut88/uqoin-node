@@ -12,15 +12,22 @@ pub type WebAppData = web::Data<AppData>;
 
 /// This function searchs for `ix` such that `check(ix) == true` and 
 /// `check(ix+1) == false`. `check` must satisty `check(ix1) >= check(ix2)` for
-/// `ix1 < ix2`. `ix` should be from `1` to `ix_last` inclusively. The
+/// `ix1 < ix2`. `ix` should be from `0` to `ix_last` inclusively. The
 /// algorithm is optimized for the result close to `ix_last`. If 
-/// `check(1) == false` the function returns `0` and if `check(ix_last) == true`
-/// the result is `ix_last`.
-pub async fn find_divergence<F>(ix_last: u64, check: F) -> TkResult<u64> 
+/// `check(0) == false` the function returns `None` and if 
+/// `check(ix_last) == true` the result is `ix_last`.
+pub async fn find_divergence<F>(ix_last: u64, check: F) -> TkResult<Option<u64>> 
                                 where F: AsyncFn(u64) -> TkResult<bool> {
-    // Check `ix_last`
-    if ix_last == 0 || check(ix_last).await? {
-        Ok(ix_last)
+    if ix_last == 0 {
+        // Case `ix_last = 0`
+        if check(0).await? {
+            Ok(Some(0))
+        } else {
+            Ok(None)
+        }
+    } else if check(ix_last).await? {
+        // Case `ix_last` gives `true`
+        Ok(Some(ix_last))
     } else {
         // Going down with exponential step
         let mut step = 1;
@@ -48,7 +55,12 @@ pub async fn find_divergence<F>(ix_last: u64, check: F) -> TkResult<u64>
             }
         }
 
-        Ok(ix_from)
+        // Check 0 and return the result
+        if ix_from == 0 && !check(0).await? {
+            Ok(None)
+        } else {
+            Ok(Some(ix_from))
+        }
     }
 }
 
@@ -77,14 +89,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_divergence() -> TkResult<()> {
-        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 7)).await?, 7);
-        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 1)).await?, 1);
-        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 9)).await?, 9);
-        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 5)).await?, 5);
-        assert_eq!(find_divergence(10, async |_| Ok(false)).await?, 0);
-        assert_eq!(find_divergence(10, async |_| Ok(true)).await?, 10);
-        assert_eq!(find_divergence(0, async |_| Ok(false)).await?, 0);
-        assert_eq!(find_divergence(0, async |_| Ok(true)).await?, 0);
+        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 7)).await?, Some(7));
+        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 1)).await?, Some(1));
+        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 9)).await?, Some(9));
+        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 5)).await?, Some(5));
+        assert_eq!(find_divergence(10, async |ix| Ok(ix <= 0)).await?, Some(0));
+        assert_eq!(find_divergence(10, async |_| Ok(false)).await?, None);
+        assert_eq!(find_divergence(10, async |_| Ok(true)).await?, Some(10));
+        assert_eq!(find_divergence(0, async |_| Ok(false)).await?, None);
+        assert_eq!(find_divergence(0, async |_| Ok(true)).await?, Some(0));
         Ok(())
     }
 }
