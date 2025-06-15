@@ -8,6 +8,7 @@ use crate::utils::*;
 
 #[derive(Debug, Serialize)]
 struct NodeInfo {
+    version: String,
     wallet: Option<U256>,
     fee: Option<String>,
     free_split: bool,
@@ -24,6 +25,7 @@ async fn list_view(appdata: WebAppData) -> APIResult {
 
 /// Get node info.
 async fn info_view(appdata: WebAppData) -> APIResult {
+    let version = env!("CARGO_PKG_VERSION").to_string();
     let wallet = appdata.config.public_key.clone();
     let fee = if appdata.config.fee_min_order > 0 {
         let symbol = coin_symbol(appdata.config.fee_min_order);
@@ -33,7 +35,7 @@ async fn info_view(appdata: WebAppData) -> APIResult {
     };
     let free_split = appdata.config.free_split;
     let lite_mode = appdata.config.lite_mode;
-    let node_info = NodeInfo { wallet, fee, free_split, lite_mode };
+    let node_info = NodeInfo { version, wallet, fee, free_split, lite_mode };
     Ok(HttpResponse::Ok().json(node_info))
 }
 

@@ -1,9 +1,10 @@
-use log::{info, error};
+use log::{info, warn, error};
 use rand::prelude::IndexedRandom;
 use tokio::io::{Error, ErrorKind};
 use tokio::time::{sleep, Duration};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use uqoin_core::utils::U256;
 use uqoin_core::block::{BlockInfo, BlockData, COMPLEXITY};
 use uqoin_core::blockchain::Blockchain;
 use uqoin_core::state::State;
@@ -37,9 +38,14 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                 let last_info_local: BlockInfo = appdata.state.read().await
                                                 .get_last_block_info().clone();
 
-                // Sync basic condition (remote transaction count is greater
-                // than the local one)
-                if last_info_remote.offset > last_info_local.offset {
+                // Sync basic condition
+                let neet_to_sync = 
+                    last_info_remote.offset > last_info_local.offset ||
+                    (
+                        last_info_remote.offset == last_info_local.offset && 
+                        last_info_remote.bix < last_info_local.bix
+                    );
+                if neet_to_sync {
                     info!("Need to sync with {}", random_node);
 
                     // Request for sync point
@@ -169,11 +175,13 @@ async fn request_for_divergent_bix(bix_last: u64, node: &str,
         )?;
 
         // Get local block hash for the `bix`
-        let hash_local = blockchain.get_block(bix).await?.hash;
+        let hash_local = blockchain.get_block_info(bix).await?.hash;
 
         // Check if hashes are equal
         Ok(block_info.hash == hash_local)
-    }).await
+    }).await?.ok_or(
+        Error::new(ErrorKind::ConnectionRefused, "Genesis does not match")
+    )
 }
 
 
@@ -201,7 +209,19 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
     // Roll down the state and pool with local blocks
     while bix > bix_sync {
         // Get local block data
-        let block_data = blockchain.get_block_data(bix).await?;
+        let mut block_data = blockchain.get_block_data(bix).await?;
+
+        // Check block for empty
+        // TODO: Fix where emptry block may appear.
+        if block_data.block.hash == U256::from(0) {
+            warn!("Local empty block with bix = {}", bix);
+
+            // Patch block_data so it evolves the state correctly
+            block_data.block.offset = state.get_last_block_info().offset;
+            block_data.block.hash = state.get_last_block_info().hash.clone();
+            block_data.block.hash_prev = blockchain.get_block_info(bix - 1)
+                                                   .await?.hash.clone();
+        }
 
         // Roll back state
         state.roll_down(bix, &block_data.block, &block_data.transactions, 
