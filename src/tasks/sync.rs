@@ -126,6 +126,9 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
             } else {
                 info!("Cound not reach the node {}", random_node);
             }
+        } else {
+            // Set is_syncing to false if no nodes provided in the config
+            set_syncing_status(&appdata, false).await;
         }
     }
 }
