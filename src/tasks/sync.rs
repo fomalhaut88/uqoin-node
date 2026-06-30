@@ -71,50 +71,56 @@ pub async fn task(appdata: WebAppData) -> TokioResult<()> {
                         bix_sync + 1, bix_until, &random_node
                     ).await?;
 
-                    info!("Got {} blocks to roll up", blocks.len());
-
-                    // Check divergent blocks
-                    if let Some((state_new, trs_vec)) = 
-                            check_divergent_blocks(&blocks, &appdata).await? {
-                        info!("Syncing with {}", random_node);
-
-                        // Lock blockchain, state and pool
-                        let blockchain = appdata.blockchain.write().await;
-                        let mut state = appdata.state.write().await;
-                        let mut pool = appdata.pool.write().await;
-
-                        // Migrate blockchain
-                        migrate_blockchain(&blocks, &blockchain).await?;
-
-                        // Update state
-                        *state = state_new;
-
-                        // Update pool
-                        for trs in trs_vec.into_iter() {
-                            let senders = Transaction::calc_senders(
-                                &trs, &state, &appdata.schema
-                            );
-                            if let Ok(group) = Group::new(trs, &state, 
-                                                          &senders) {
-                                pool.add(group, senders[0].clone());
-                            }
-                        }
-                        pool.update(&state, &appdata.schema);
-
-                        // Dump state
-                        state.dump(&appdata.config.get_state_path()).await?;
-
-                        // Unset is_syncing if everything is up to date
-                        if bix_until == last_info_remote.bix {
-                            set_syncing_status(&appdata, false).await;
-                        }
-
+                    if blocks.is_empty() {
+                        info!("No blocks to roll up");
+                        set_syncing_status(&appdata, false).await;
                         info!("Synced with {} successfully", random_node);
                     } else {
-                        // Unset is_syncing if block is invalid
-                        set_syncing_status(&appdata, false).await;
+                        info!("Got {} blocks to roll up", blocks.len());
 
-                        info!("Blocks are invalid in {}", random_node);
+                        // Check divergent blocks
+                        if let Some((state_new, trs_vec)) =
+                                check_divergent_blocks(&blocks, &appdata).await? {
+                            info!("Syncing with {}", random_node);
+
+                            // Lock blockchain, state and pool
+                            let blockchain = appdata.blockchain.write().await;
+                            let mut state = appdata.state.write().await;
+                            let mut pool = appdata.pool.write().await;
+
+                            // Migrate blockchain
+                            migrate_blockchain(&blocks, &blockchain).await?;
+
+                            // Update state
+                            *state = state_new;
+
+                            // Update pool
+                            for trs in trs_vec.into_iter() {
+                                let senders = Transaction::calc_senders(
+                                    &trs, &state, &appdata.schema
+                                );
+                                if let Ok(group) = Group::new(trs, &state,
+                                                              &senders) {
+                                    pool.add(group, senders[0].clone());
+                                }
+                            }
+                            pool.update(&state, &appdata.schema);
+
+                            // Dump state
+                            state.dump(&appdata.config.get_state_path()).await?;
+
+                            // Unset is_syncing if everything is up to date
+                            if bix_until == last_info_remote.bix {
+                                set_syncing_status(&appdata, false).await;
+                            }
+
+                            info!("Synced with {} successfully", random_node);
+                        } else {
+                            // Unset is_syncing if block is invalid
+                            set_syncing_status(&appdata, false).await;
+
+                            info!("Blocks are invalid in {}", random_node);
+                        }
                     }
                 } else {
                     // Unset is_syncing if nothing to sync
@@ -189,11 +195,16 @@ async fn request_for_divergent_bix(bix_last: u64, node: &str,
 
 async fn request_for_remote_blocks(bix_from: u64, bix_to: u64, node: &str) -> 
                                    TokioResult<Vec<BlockData>> {
-    async_try_many!(
-        TRY_NODE_ATTEMPTS, request_node, 
-        &node, "/blockchain/block-many",
-        Some(BlockManyQuery { bix: bix_from, count: bix_to + 1 - bix_from })
-    )
+    let count = bix_to + 1 - bix_from;
+    if count > 0 {
+        async_try_many!(
+            TRY_NODE_ATTEMPTS, request_node,
+            &node, "/blockchain/block-many",
+            Some(BlockManyQuery { bix: bix_from, count })
+        )
+    } else {
+        Ok(Vec::new())
+    }
 }
 
 
