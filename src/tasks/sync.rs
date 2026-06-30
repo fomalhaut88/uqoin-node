@@ -1,10 +1,9 @@
-use log::{info, warn, error};
+use log::{info, error};
 use rand::prelude::IndexedRandom;
 use tokio::io::{Error, ErrorKind};
 use tokio::time::{sleep, Duration};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use uqoin_core::utils::U256;
 use uqoin_core::block::{BlockInfo, BlockData, COMPLEXITY};
 use uqoin_core::blockchain::Blockchain;
 use uqoin_core::state::State;
@@ -212,19 +211,7 @@ async fn check_divergent_blocks(blocks: &[BlockData], appdata: &WebAppData) ->
     // Roll down the state and pool with local blocks
     while bix > bix_sync {
         // Get local block data
-        let mut block_data = blockchain.get_block_data(bix).await?;
-
-        // Check block for empty
-        // TODO: Fix where emptry block may appear.
-        if block_data.block.hash == U256::from(0) {
-            warn!("Local empty block with bix = {}", bix);
-
-            // Patch block_data so it evolves the state correctly
-            block_data.block.offset = state.get_last_block_info().offset;
-            block_data.block.hash = state.get_last_block_info().hash.clone();
-            block_data.block.hash_prev = blockchain.get_block_info(bix - 1)
-                                                   .await?.hash.clone();
-        }
+        let block_data = blockchain.get_block_data(bix).await?;
 
         // Roll back state
         state.roll_down(bix, &block_data.block, &block_data.transactions, 
