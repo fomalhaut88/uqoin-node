@@ -2085,9 +2085,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "uqoin-core"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2159329f2306ed8467f463eed51575711409fc802848d5b187401880afbbc70d"
+checksum = "94a63cc8d6e7ae3cfb7805662171b9caaae47f515dd77e5496daeac912c00dc6"
 dependencies = [
  "bip39",
  "finitelib",
